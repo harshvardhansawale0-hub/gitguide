@@ -1,3 +1,0 @@
-# GitGuide
-DBMS MINI PROJECT
-HELLO
