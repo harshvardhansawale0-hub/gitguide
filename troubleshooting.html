@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Paste your Git error and get an instant solution with GitGuide's Error Log Analyzer.">
+    <title>Error Log Analyzer – GitGuide</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ========== NAVIGATION ========== -->
+    <nav class="navbar" aria-label="Main navigation">
+        <div class="container">
+            <a href="index.html" class="navbar-brand">
+                <span class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <circle cx="18" cy="18" r="3"></circle>
+                        <path d="M6 9v6"></path>
+                        <path d="M18 15v-2a3 3 0 0 0-3-3 3 3 0 0 0-3 3v2"></path>
+                    </svg>
+                </span>
+                GitGuide
+            </a>
+
+            <button class="hamburger" id="hamburger" aria-label="Toggle navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="navbar-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="search.html">Search</a>
+                <a href="commands.html">Commands</a>
+                <a href="troubleshooting.html" class="active">Troubleshooting</a>
+                <a href="login.html">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== PAGE TITLE ========== -->
+    <section class="section giant-search-section" style="padding: 8rem 0 4rem;">
+        <div class="container">
+            <div class="giant-search-container reveal" style="text-align:center;">
+                <div class="eyebrow" style="margin-bottom: 1rem; justify-content:center;">Error Log Analyzer</div>
+                <h1 style="margin-bottom: 1.5rem;">Git Troubleshooting</h1>
+                <p style="color:var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto;">Paste your Git or GitHub error below to instantly find the root cause and a proven solution.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <section class="section" style="padding-top: 0;">
+        <div class="container" style="max-width:800px;">
+
+            <!-- Terminal-style input area -->
+            <div class="terminal-block" style="background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); margin-bottom: 2rem;">
+                <div class="panel-header dark" style="border-bottom:1px solid rgba(255,255,255,0.1);">
+                    <div class="dots"><span></span><span></span><span></span></div>
+                    <div class="panel-title">paste your terminal error here</div>
+                </div>
+                <textarea
+                    id="errorInput"
+                    placeholder="remote: Support for password authentication was removed.
+fatal: Authentication failed for 'https://github.com/...'"
+                    aria-label="Paste your Git error"
+                    style="width:100%; min-height:200px; background:transparent; border:none; padding:1.5rem; color:var(--code-text); font-family:monospace; font-size:1rem; resize:vertical;"
+                ></textarea>
+            </div>
+
+            <button class="btn btn-primary" id="analyzeBtn" style="width:100%; justify-content:center; padding:1rem; font-size:1.1rem; box-shadow: 0 0 20px rgba(0,255,255,0.2);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.5rem;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                Analyze Error
+            </button>
+
+            <!-- Results area -->
+            <div id="resultsArea" style="margin-top: 4rem;">
+                <!-- Results rendered by troubleshooting.js -->
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="footer-minimal">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <h3>GitGuide</h3>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <a href="search.html">Search</a>
+                    <a href="commands.html">Commands</a>
+                    <a href="troubleshooting.html">Troubleshooting</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <a href="search.html?category=Git+Basics">Git Basics</a>
+                    <a href="search.html?category=GitHub">GitHub</a>
+                    <a href="search.html?category=Branching">Branching</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Project</h4>
+                    <a href="#">About</a>
+                    <a href="#">GitHub</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 GitGuide</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/troubleshooting.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,88 @@
+// ============================================================
+// GitGuide – Bookmarks API Routes
+// ============================================================
+const express = require('express');
+const db = require('../config/db');
+const { authenticateToken } = require('../middleware/auth');
+
+const router = express.Router();
+
+// GET /api/bookmarks – Get all bookmarked articles for logged-in user
+router.get('/', authenticateToken, (req, res) => {
+    try {
+        const bookmarks = db.prepare(`
+            SELECT 
+                b.id AS bookmarkId,
+                b.created_at AS bookmarkedAt,
+                a.id,
+                a.title,
+                c.name AS category,
+                a.difficulty,
+                a.description,
+                a.reading_time AS readingTime,
+                a.author
+            FROM bookmarks b
+            JOIN articles a ON a.id = b.article_id
+            JOIN categories c ON c.id = a.category_id
+            WHERE b.user_id = ?
+            ORDER BY b.created_at DESC
+        `).all(req.user.id);
+
+        return res.json({ success: true, count: bookmarks.length, data: bookmarks });
+    } catch (err) {
+        console.error('Error fetching bookmarks:', err);
+        return res.status(500).json({ success: false, message: 'Server error fetching bookmarks.' });
+    }
+});
+
+// GET /api/bookmarks/ids – Get list of bookmarked article IDs
+router.get('/ids', authenticateToken, (req, res) => {
+    try {
+        const rows = db.prepare('SELECT article_id FROM bookmarks WHERE user_id = ?').all(req.user.id);
+        const ids = rows.map(r => r.article_id);
+        return res.json({ success: true, data: ids });
+    } catch (err) {
+        console.error('Error fetching bookmark IDs:', err);
+        return res.status(500).json({ success: false, message: 'Server error fetching bookmark IDs.' });
+    }
+});
+
+// POST /api/bookmarks/toggle – Toggle bookmark status
+router.post('/toggle', authenticateToken, (req, res) => {
+    try {
+        const { articleId } = req.body;
+        const artId = parseInt(articleId);
+
+        if (!artId) {
+            return res.status(400).json({ success: false, message: 'Valid articleId is required.' });
+        }
+
+        const article = db.prepare('SELECT title FROM articles WHERE id = ?').get(artId);
+        if (!article) {
+            return res.status(404).json({ success: false, message: 'Article not found.' });
+        }
+
+        const existing = db.prepare('SELECT id FROM bookmarks WHERE article_id = ? AND user_id = ?').get(artId, req.user.id);
+
+        if (existing) {
+            db.prepare('DELETE FROM bookmarks WHERE id = ?').run(existing.id);
+            return res.json({
+                success: true,
+                bookmarked: false,
+                message: 'Bookmark removed.'
+            });
+        } else {
+            db.prepare('INSERT INTO bookmarks (article_id, user_id) VALUES (?, ?)').run(artId, req.user.id);
+            return res.json({
+                success: true,
+                bookmarked: true,
+                message: 'Article bookmarked!'
+            });
+        }
+    } catch (err) {
+        console.error('Error toggling bookmark:', err);
+        return res.status(500).json({ success: false, message: 'Server error toggling bookmark.' });
+    }
+});
+
+module.exports = router;

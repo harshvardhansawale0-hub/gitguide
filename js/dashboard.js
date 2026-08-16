@@ -1,0 +1,533 @@
+// ============================================================
+// GitGuide – Admin Dashboard JavaScript (Full-Stack Integrated)
+// ============================================================
+// Full admin management dashboard connected to Express REST API:
+// - Live real-time stats & KPIs
+// - Article CRUD (create, edit, delete, publish/draft)
+// - Dynamic category metrics
+// - Comment moderation
+// - System audit log trail
+// ============================================================
+
+var dashboardArticles = [];
+var dashboardCategories = [];
+var dashboardComments = [];
+var dashboardAuditLogs = [];
+
+// ---- INITIALIZE DASHBOARD ----
+
+document.addEventListener('DOMContentLoaded', async function () {
+    // Secure the page - redirect if not admin
+    var user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user || user.role !== 'admin') {
+        window.location.href = user ? 'user-dashboard.html' : 'login.html';
+        return;
+    }
+
+    // Load live data from backend API
+    await loadAllDashboardData();
+
+    // Render all dashboard sections
+    renderStats();
+    renderArticleTable();
+    renderCategoryTable();
+    renderAllComments();
+    renderAuditLog();
+    renderRecentActivity();
+
+    // Populate modal category dropdown
+    populateModalCategories();
+
+    // Attach event listeners to sidebar items
+    initSidebarListeners();
+
+    // Modal event listeners
+    var addBtn = document.getElementById('addArticleBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', openAddModal);
+    }
+
+    var cancelBtn = document.getElementById('modalCancelBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeModal);
+    }
+
+    var saveBtn = document.getElementById('modalSaveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveArticle);
+    }
+
+    // Close modal when clicking overlay
+    var overlay = document.getElementById('modalOverlay');
+    if (overlay) {
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) {
+                closeModal();
+            }
+        });
+    }
+});
+
+// ---- SIDEBAR TAB LISTENERS ----
+
+function initSidebarListeners() {
+    var sidebarLinks = document.querySelectorAll('.dashboard-sidebar a[data-tab]');
+    sidebarLinks.forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            var tabName = this.getAttribute('data-tab');
+            switchTab(tabName, this, e);
+        });
+    });
+}
+
+// ---- LOAD LIVE DASHBOARD DATA ----
+
+async function loadAllDashboardData() {
+    if (typeof API !== 'undefined' && API.getToken()) {
+        try {
+            // 1. Articles
+            var artRes = await API.articles.getAll({ status: 'all' });
+            if (artRes.success && Array.isArray(artRes.data)) {
+                dashboardArticles = artRes.data;
+            }
+
+            // 2. Categories
+            var catRes = await API.categories.getAll();
+            if (catRes.success && Array.isArray(catRes.data)) {
+                dashboardCategories = catRes.data;
+            }
+
+            // 3. Comments
+            var comRes = await API.comments.getAll();
+            if (comRes.success && Array.isArray(comRes.data)) {
+                dashboardComments = comRes.data;
+            }
+
+            // 4. Audit Logs
+            var logRes = await API.dashboard.getAuditLogs();
+            if (logRes.success && Array.isArray(logRes.data)) {
+                dashboardAuditLogs = logRes.data;
+            }
+        } catch (e) {
+            console.warn('Could not load data from API, using fallback:', e);
+        }
+    }
+
+    // Fallbacks if offline
+    if (dashboardArticles.length === 0 && typeof articles !== 'undefined') {
+        dashboardArticles = articles.map(function (a) {
+            return {
+                id: a.id,
+                title: a.title,
+                category: a.category,
+                difficulty: a.difficulty,
+                description: a.description,
+                status: 'Published'
+            };
+        });
+    }
+
+    if (dashboardCategories.length === 0 && typeof categories !== 'undefined') {
+        dashboardCategories = categories;
+    }
+}
+
+// ---- TAB SWITCHING ----
+
+function switchTab(tabName, clickedLink, e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    // Map any alias tab names
+    if (tabName === 'guides') tabName = 'articles';
+
+    // Hide all sections
+    var sections = document.querySelectorAll('.dashboard-section');
+    sections.forEach(function (section) {
+        section.classList.remove('active');
+        section.style.display = 'none';
+    });
+
+    // Show the selected section
+    var targetSection = document.getElementById('tab-' + tabName);
+    if (targetSection) {
+        targetSection.classList.add('active');
+        targetSection.style.display = 'block';
+    }
+
+    // Update sidebar active state
+    var sidebarLinks = document.querySelectorAll('.dashboard-sidebar a');
+    sidebarLinks.forEach(function (link) {
+        link.classList.remove('active');
+        var tabAttr = link.getAttribute('data-tab');
+        if (tabAttr === tabName) {
+            link.classList.add('active');
+        }
+    });
+
+    if (clickedLink && clickedLink.classList) {
+        clickedLink.classList.add('active');
+    }
+}
+
+// ---- RENDER STATS ----
+
+async function renderStats() {
+    var statGrid = document.getElementById('statGrid');
+    if (!statGrid) return;
+
+    var stats = {
+        totalArticles: dashboardArticles.length,
+        totalCategories: dashboardCategories.length,
+        totalComments: dashboardComments.length,
+        avgRating: '4.8'
+    };
+
+    if (typeof API !== 'undefined' && API.dashboard && API.getToken()) {
+        var res = await API.dashboard.getStats();
+        if (res.success && res.data) {
+            stats.totalArticles = res.data.totalArticles;
+            stats.totalCategories = res.data.totalCategories;
+            stats.totalComments = res.data.totalComments;
+            stats.avgRating = res.data.averageRating || '5.0';
+        }
+    }
+
+    var html = '';
+
+    html += '<div class="stat-card" onclick="switchTab(\'articles\', null, event)" title="Click to view Guides">';
+    html += '  <div class="stat-icon">📄</div>';
+    html += '  <div class="stat-number">' + stats.totalArticles + '</div>';
+    html += '  <div class="stat-label">Total Articles</div>';
+    html += '</div>';
+
+    html += '<div class="stat-card" onclick="switchTab(\'categories\', null, event)" title="Click to view Categories">';
+    html += '  <div class="stat-icon">📁</div>';
+    html += '  <div class="stat-number">' + stats.totalCategories + '</div>';
+    html += '  <div class="stat-label">Categories</div>';
+    html += '</div>';
+
+    html += '<div class="stat-card" onclick="switchTab(\'comments\', null, event)" title="Click to view Comments">';
+    html += '  <div class="stat-icon">💬</div>';
+    html += '  <div class="stat-number">' + stats.totalComments + '</div>';
+    html += '  <div class="stat-label">Total Comments</div>';
+    html += '</div>';
+
+    html += '<div class="stat-card" onclick="switchTab(\'audit\', null, event)" title="Click to view Audit Logs">';
+    html += '  <div class="stat-icon">⭐</div>';
+    html += '  <div class="stat-number">' + stats.avgRating + '</div>';
+    html += '  <div class="stat-label">Avg. Rating</div>';
+    html += '</div>';
+
+    statGrid.innerHTML = html;
+}
+
+// ---- RENDER ARTICLE TABLE ----
+
+function renderArticleTable() {
+    var tbody = document.getElementById('articleTableBody');
+    if (!tbody) return;
+
+    var html = '';
+
+    dashboardArticles.forEach(function (article) {
+        html += '<tr>';
+        html += '  <td data-label="ID">#' + article.id + '</td>';
+        html += '  <td data-label="Article"><strong>' + escapeHtml(article.title) + '</strong></td>';
+        html += '  <td data-label="Category"><span class="badge badge-category">' + escapeHtml(article.category) + '</span></td>';
+        html += '  <td data-label="Difficulty"><span class="badge ' + getDifficultyClass(article.difficulty) + '">' + escapeHtml(article.difficulty) + '</span></td>';
+        html += '  <td data-label="Status"><span class="' + (article.status === 'Published' ? 'status-published' : 'status-draft') + '">' + (article.status || 'Published') + '</span></td>';
+        html += '  <td data-label="Actions">';
+        html += '    <div class="table-actions">';
+        html += '      <button class="btn btn-secondary btn-sm" onclick="openEditModal(' + article.id + ')">✏️ Edit</button>';
+        html += '      <button class="btn btn-danger btn-sm" onclick="deleteArticle(' + article.id + ')">🗑️ Delete</button>';
+        html += '    </div>';
+        html += '  </td>';
+        html += '</tr>';
+    });
+
+    tbody.innerHTML = html;
+}
+
+// ---- RENDER CATEGORY TABLE ----
+
+function renderCategoryTable() {
+    var tbody = document.getElementById('categoryTableBody');
+    if (!tbody) return;
+
+    var html = '';
+
+    dashboardCategories.forEach(function (cat) {
+        var icon = cat.icon || '📁';
+        html += '<tr>';
+        html += '  <td data-label="ID">#' + cat.id + '</td>';
+        html += '  <td data-label="Icon">' + icon + '</td>';
+        html += '  <td data-label="Category"><strong>' + escapeHtml(cat.name) + '</strong></td>';
+        html += '  <td data-label="Description">' + escapeHtml(cat.description || '') + '</td>';
+        html += '  <td data-label="Guides"><span class="badge badge-category">' + (cat.guideCount || 0) + ' guides</span></td>';
+        html += '</tr>';
+    });
+
+    tbody.innerHTML = html;
+}
+
+// ---- RENDER ALL COMMENTS ----
+
+function renderAllComments() {
+    var container = document.getElementById('allComments');
+    if (!container) return;
+
+    if (dashboardComments.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="text-align:center; padding:2rem;"><div class="empty-icon" style="font-size:2.5rem; margin-bottom:0.5rem;">💬</div><h3>No comments yet</h3><p style="color:var(--text-muted);">Comments submitted by users will appear here.</p></div>';
+        return;
+    }
+
+    var html = '<div class="comment-list">';
+
+    dashboardComments.forEach(function (comment) {
+        html += '<div class="comment-item" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; margin-bottom:1rem;">';
+        html += '  <div class="comment-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">';
+        html += '    <span class="comment-author"><strong>' + escapeHtml(comment.name) + '</strong> on <a href="article.html?id=' + comment.articleId + '" style="color:var(--primary);">' + escapeHtml(comment.articleTitle || ('Article #' + comment.articleId)) + '</a></span>';
+        html += '    <div style="display:flex; align-items:center; gap:1rem;">';
+        html += '      <span class="comment-date" style="color:var(--text-muted); font-size:0.85rem;">' + (comment.date || 'Recently') + '</span>';
+        html += '      <button class="btn btn-danger btn-sm" style="padding:0.25rem 0.6rem; font-size:0.75rem;" onclick="deleteComment(' + comment.id + ')">Delete</button>';
+        html += '    </div>';
+        html += '  </div>';
+        html += '  <p class="comment-text" style="margin:0; color:var(--text); line-height:1.5;">' + escapeHtml(comment.text) + '</p>';
+        html += '</div>';
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// ---- RENDER AUDIT LOG ----
+
+function renderAuditLog() {
+    var container = document.getElementById('auditLog');
+    if (!container) return;
+
+    var logs = dashboardAuditLogs.length > 0 ? dashboardAuditLogs : [
+        { icon: '🚀', message: 'System database initialized and connected', formattedTime: 'Just now' },
+        { icon: '📄', message: 'Articles loaded from SQLite database', formattedTime: '5 minutes ago' },
+        { icon: '⭐', message: 'Ratings service online', formattedTime: '15 minutes ago' }
+    ];
+
+    var html = '';
+    logs.forEach(function (entry) {
+        html += '<div class="audit-log-item" style="display:flex; align-items:center; gap:1rem; padding:1rem; border-bottom:1px solid var(--border);">';
+        html += '  <span class="audit-icon" style="font-size:1.25rem;">' + (entry.icon || '📌') + '</span>';
+        html += '  <div class="audit-text" style="flex:1;">';
+        html += '    <p class="audit-message" style="margin:0; color:var(--text); font-weight:500;">' + escapeHtml(entry.message) + '</p>';
+        html += '    <span class="audit-time" style="font-size:0.8rem; color:var(--text-muted);">' + (entry.formattedTime || 'Recently') + (entry.triggeredBy ? ' by ' + entry.triggeredBy : '') + '</span>';
+        html += '  </div>';
+        html += '</div>';
+    });
+
+    container.innerHTML = html;
+}
+
+// ---- RENDER RECENT ACTIVITY (Overview Tab) ----
+
+function renderRecentActivity() {
+    var container = document.getElementById('recentActivity');
+    if (!container) return;
+
+    var recentLogs = dashboardAuditLogs.slice(0, 5);
+    if (recentLogs.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted); margin:0;">No recent activity recorded.</p>';
+        return;
+    }
+
+    var html = '';
+    recentLogs.forEach(function (entry) {
+        html += '<div class="activity-item" style="display:flex; gap:1rem; align-items:center; padding:0.75rem 0; border-bottom:1px solid var(--border);">';
+        html += '  <span style="font-size:1.2rem;">' + (entry.icon || '📌') + '</span>';
+        html += '  <div style="flex:1;">';
+        html += '    <div style="color:var(--text); font-size:0.95rem;">' + escapeHtml(entry.message) + '</div>';
+        html += '    <div style="color:var(--text-muted); font-size:0.8rem;">' + (entry.formattedTime || 'Recently') + '</div>';
+        html += '  </div>';
+        html += '</div>';
+    });
+
+    container.innerHTML = html;
+}
+
+// ---- POPULATE MODAL CATEGORIES ----
+
+function populateModalCategories() {
+    var select = document.getElementById('modalArticleCategory');
+    if (!select) return;
+
+    select.innerHTML = '';
+    dashboardCategories.forEach(function (cat) {
+        var option = document.createElement('option');
+        option.value = cat.name;
+        option.textContent = cat.name;
+        select.appendChild(option);
+    });
+}
+
+// ---- MODAL CONTROLS ----
+
+function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'Add New Article';
+    document.getElementById('modalArticleId').value = '';
+    document.getElementById('modalArticleTitle').value = '';
+    document.getElementById('modalArticleDesc').value = '';
+    document.getElementById('modalArticleDifficulty').value = 'Beginner';
+    var statusEl = document.getElementById('modalArticleStatus');
+    if (statusEl) statusEl.value = 'Published';
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+function openEditModal(articleId) {
+    var article = dashboardArticles.find(function (a) { return a.id === articleId; });
+    if (!article) return;
+
+    document.getElementById('modalTitle').textContent = 'Edit Article';
+    document.getElementById('modalArticleId').value = article.id;
+    document.getElementById('modalArticleTitle').value = article.title;
+    document.getElementById('modalArticleCategory').value = article.category;
+    document.getElementById('modalArticleDifficulty').value = article.difficulty;
+    document.getElementById('modalArticleDesc').value = article.description || '';
+    var statusEl = document.getElementById('modalArticleStatus');
+    if (statusEl) statusEl.value = article.status || 'Published';
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+
+// ---- SAVE ARTICLE (Add or Edit) ----
+
+async function saveArticle() {
+    var idInput = document.getElementById('modalArticleId').value;
+    var title = document.getElementById('modalArticleTitle').value.trim();
+    var category = document.getElementById('modalArticleCategory').value;
+    var difficulty = document.getElementById('modalArticleDifficulty').value;
+    var description = document.getElementById('modalArticleDesc').value.trim();
+    var statusEl = document.getElementById('modalArticleStatus');
+    var status = statusEl ? statusEl.value : 'Published';
+
+    if (!title || !description) {
+        showToast('Please fill in all required fields.', 'error');
+        return;
+    }
+
+    if (idInput) {
+        // Edit existing
+        var articleId = parseInt(idInput);
+
+        if (typeof API !== 'undefined' && API.articles && API.getToken()) {
+            var res = await API.articles.update(articleId, {
+                title: title,
+                categoryName: category,
+                difficulty: difficulty,
+                description: description,
+                status: status
+            });
+            if (res.success) {
+                showToast('Article updated on server!', 'success');
+            }
+        }
+
+        var index = dashboardArticles.findIndex(function (a) { return a.id === articleId; });
+        if (index > -1) {
+            dashboardArticles[index].title = title;
+            dashboardArticles[index].category = category;
+            dashboardArticles[index].difficulty = difficulty;
+            dashboardArticles[index].description = description;
+            dashboardArticles[index].status = status;
+        }
+    } else {
+        // Add new
+        var newArticleId = Date.now();
+
+        if (typeof API !== 'undefined' && API.articles && API.getToken()) {
+            var createRes = await API.articles.create({
+                title: title,
+                categoryName: category,
+                difficulty: difficulty,
+                description: description,
+                status: status,
+                readingTime: '5 min',
+                steps: [
+                    { title: 'Introduction', content: description, command: 'git status' }
+                ]
+            });
+            if (createRes.success && createRes.id) {
+                newArticleId = createRes.id;
+                showToast('New article created on server!', 'success');
+            }
+        }
+
+        dashboardArticles.push({
+            id: newArticleId,
+            title: title,
+            category: category,
+            difficulty: difficulty,
+            description: description,
+            status: status
+        });
+    }
+
+    closeModal();
+    await loadAllDashboardData();
+    renderStats();
+    renderArticleTable();
+    renderAuditLog();
+    renderRecentActivity();
+}
+
+// ---- DELETE ARTICLE ----
+
+async function deleteArticle(articleId) {
+    if (!confirm('Are you sure you want to delete this article?')) return;
+
+    if (typeof API !== 'undefined' && API.articles && API.getToken()) {
+        var res = await API.articles.delete(articleId);
+        if (res.success) {
+            showToast('Article deleted from database.', 'success');
+        }
+    }
+
+    dashboardArticles = dashboardArticles.filter(function (a) { return a.id !== articleId; });
+    renderStats();
+    renderArticleTable();
+    renderAuditLog();
+    renderRecentActivity();
+}
+
+// ---- DELETE COMMENT ----
+
+async function deleteComment(commentId) {
+    if (!confirm('Are you sure you want to delete this comment?')) return;
+
+    if (typeof API !== 'undefined' && API.comments && API.getToken()) {
+        var res = await API.comments.delete(commentId);
+        if (res.success) {
+            showToast('Comment deleted.', 'success');
+        }
+    }
+
+    dashboardComments = dashboardComments.filter(function (c) { return c.id !== commentId; });
+    renderAllComments();
+    renderStats();
+}
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+// Attach all interactive handlers to window for inline onclick compatibility
+window.switchTab = switchTab;
+window.openAddModal = openAddModal;
+window.openEditModal = openEditModal;
+window.closeModal = closeModal;
+window.saveArticle = saveArticle;
+window.deleteArticle = deleteArticle;
+window.deleteComment = deleteComment;

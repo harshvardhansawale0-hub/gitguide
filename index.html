@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GitGuide – A searchable Git and GitHub help center. Find solutions to common Git problems, browse guides, and generate commands.">
+    <title>GitGuide – Git & GitHub Help Center</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ========== NAVIGATION ========== -->
+    <nav class="navbar" aria-label="Main navigation">
+        <div class="container">
+            <a href="index.html" class="navbar-brand">
+                <span class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <circle cx="18" cy="18" r="3"></circle>
+                        <path d="M6 9v6"></path>
+                        <path d="M18 15v-2a3 3 0 0 0-3-3 3 3 0 0 0-3 3v2"></path>
+                    </svg>
+                </span>
+                GitGuide
+            </a>
+
+            <button class="hamburger" id="hamburger" aria-label="Toggle navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="navbar-links" id="navLinks">
+                <a href="index.html" class="active">Home</a>
+                <a href="search.html">Search</a>
+                <a href="commands.html">Commands</a>
+                <a href="troubleshooting.html">Troubleshooting</a>
+                <a href="login.html">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== HERO SECTION ========== -->
+    <section class="hero-editorial">
+        <div class="hero-glow"></div>
+        <div class="container">
+            <div class="hero-grid-split">
+                
+                <div class="hero-content-left reveal">
+                    <div class="eyebrow">GIT & GITHUB KNOWLEDGE BASE</div>
+                    <h1>Git problems?<br><span class="hero-highlight">Find the solution.</span></h1>
+                    <p>Simple, practical guides for Git and GitHub problems.</p>
+                    
+                    <div class="hero-buttons">
+                        <a href="search.html" class="btn btn-primary">
+                            Explore Guides <span class="arrow">→</span>
+                        </a>
+                        <a href="commands.html" class="btn btn-secondary">
+                            Open Command Builder
+                        </a>
+                    </div>
+                </div>
+
+                <div class="hero-visual-right reveal" style="transition-delay: 0.1s;">
+                    <!-- Main Product Preview Panel -->
+                    <div class="hero-panel main-panel">
+                        <div class="panel-header">
+                            <div class="dots"><span></span><span></span><span></span></div>
+                            <div class="panel-title">GitGuide Search</div>
+                        </div>
+                        <div class="panel-body">
+                            <div class="panel-skeleton-title"></div>
+                            <div class="panel-skeleton-text"></div>
+                            <div class="panel-skeleton-text short"></div>
+                            <div class="panel-code">
+                                <span class="token-prompt">$</span> git status<br>
+                                <span class="token-prompt">$</span> git add .<br>
+                                <span class="token-prompt">$</span> git commit -m "update"
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Overlapping Terminal Panel -->
+                    <div class="hero-panel secondary-panel">
+                        <div class="panel-header dark">
+                            <div class="dots"><span></span><span></span><span></span></div>
+                            <div class="panel-title">bash</div>
+                        </div>
+                        <div class="panel-body terminal">
+                            <span class="token-error">error: failed to push some refs</span><br>
+                            <span class="token-muted">hint: Updates were rejected because the remote contains work...</span>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== SECTION 1: BROWSE KNOWLEDGE ========== -->
+    <section class="section editorial-section">
+        <div class="container">
+            <div class="editorial-header reveal">
+                <div class="eyebrow">EXPLORE GIT</div>
+                <h2>Everything you need<br>to work with Git.</h2>
+                <p>Browse our curated topics to find exact solutions for your version control workflow.</p>
+            </div>
+            
+            <div class="category-editorial-grid" id="categoryGrid">
+                <!-- Categories rendered by script.js -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== SECTION 2: FEATURED GUIDE ========== -->
+    <section class="section feature-section">
+        <div class="container">
+            <div class="feature-split">
+                <div class="feature-text reveal">
+                    <div class="eyebrow">FEATURED GUIDE</div>
+                    <h2>Fix Git merge conflicts<br>without losing your work.</h2>
+                    <p>A step-by-step tutorial on resolving conflicts during a rebase or merge operation safely.</p>
+                    <a href="article.html?id=1" class="btn btn-primary mt-4">Read guide <span class="arrow">→</span></a>
+                </div>
+                
+                <div class="feature-visual reveal" style="transition-delay: 0.2s;">
+                    <div class="doc-preview">
+                        <div class="doc-sidebar">
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                        </div>
+                        <div class="doc-content">
+                            <div class="doc-title">Resolving Conflicts</div>
+                            <div class="doc-meta">Merging · Intermediate · 5 min</div>
+                            <div class="doc-code-block">
+                                <span class="token-prompt">$</span> git rebase main<br>
+                                <span class="token-warning">CONFLICT (content): Merge conflict in index.html</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== SECTION 3: COMMAND BUILDER ========== -->
+    <section class="section command-section">
+        <div class="container">
+            <div class="command-split reveal">
+                <div class="command-text">
+                    <h2>Build the command<br>before you run it.</h2>
+                    <p>Select a Git command and safely construct the syntax without guessing flags.</p>
+                    <div style="margin-top: 2rem;">
+                        <select id="homeCommandSelect" class="form-select" style="background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 0.75rem 1rem; border-radius: var(--radius); width: 100%; max-width: 300px;">
+                            <option value="git reset --hard HEAD~1">Undo last commit (hard)</option>
+                            <option value="git commit --amend -m 'new message'">Amend commit message</option>
+                            <option value="git push origin main --force-with-lease">Force push safely</option>
+                            <option value="git branch -d feature-branch">Delete local branch</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="command-ui">
+                    <div class="command-terminal">
+                        <div class="command-output">
+                            <span class="token-prompt">$</span> <span id="homeCommandPreview">git reset --hard HEAD~1</span>
+                        </div>
+                        <div class="command-actions">
+                            <button class="btn-secondary btn-copy">Copy command</button>
+                            <span class="command-warning">⚠ Destructive command</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== SECTION 4: TROUBLESHOOTING ========== -->
+    <section class="section troubleshooting-section">
+        <div class="container">
+            <div class="feature-split row-reverse">
+                <div class="feature-text reveal">
+                    <h2>Paste the error.<br>Find the problem.</h2>
+                    <p>Search messy terminal output and find the matching GitGuide solution instantly.</p>
+                    <a href="troubleshooting.html" class="btn btn-secondary mt-4">Analyze an error <span class="arrow">→</span></a>
+                </div>
+                <div class="feature-visual reveal" style="transition-delay: 0.2s;">
+                    <div class="terminal-analyzer">
+                        <div class="analyzer-input">
+                            <span class="token-prompt">$</span> git push origin main<br>
+                            <span class="token-error">error: failed to push some refs</span>
+                        </div>
+                        <div class="analyzer-result">
+                            <div class="result-status">✓ Solution found</div>
+                            <div class="result-title">Push rejected (non-fast-forward)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== SECTION 5: GIANT SEARCH ========== -->
+    <section class="section giant-search-section">
+        <div class="container">
+            <div class="giant-search-container reveal">
+                <h2>Discover the knowledge<br>you need. Fast.</h2>
+                
+                <form action="search.html" method="GET" class="giant-search-form">
+                    <svg class="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" name="q" placeholder="Search Git commands, errors, branches..." autocomplete="off">
+                </form>
+                
+                <div class="popular-searches">
+                    <span>Popular:</span>
+                    <a href="search.html?q=git+merge" class="search-pill">git merge</a>
+                    <a href="search.html?q=git+reset" class="search-pill">git reset</a>
+                    <a href="search.html?q=authentication+failed" class="search-pill">authentication failed</a>
+                    <a href="search.html?q=git+reflog" class="search-pill">git reflog</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== SECTION 6: TRENDING GUIDES ========== -->
+    <section class="section editorial-section">
+        <div class="container">
+            <div class="editorial-header reveal">
+                <h2>Trending guides.</h2>
+            </div>
+            
+            <div class="documentation-feed" id="trendingFeed">
+                <!-- Trending articles rendered by script.js as a list feed -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== SECTION 7: GIT WORKFLOW ========== -->
+    <section class="section workflow-section">
+        <div class="container">
+            <h2 class="text-center reveal" style="text-align: center; margin-bottom: 3rem;">The Standard Workflow</h2>
+            
+            <div class="workflow-diagram reveal">
+                <div class="workflow-node">
+                    <div class="node-icon">↓</div>
+                    <div class="node-text">git clone</div>
+                </div>
+                <div class="workflow-line"></div>
+                <div class="workflow-node">
+                    <div class="node-icon">↓</div>
+                    <div class="node-text">git branch</div>
+                </div>
+                <div class="workflow-line"></div>
+                <div class="workflow-node">
+                    <div class="node-icon">↓</div>
+                    <div class="node-text">git add</div>
+                </div>
+                <div class="workflow-line"></div>
+                <div class="workflow-node">
+                    <div class="node-icon">↓</div>
+                    <div class="node-text">git commit</div>
+                </div>
+                <div class="workflow-line"></div>
+                <div class="workflow-node">
+                    <div class="node-icon">↑</div>
+                    <div class="node-text">git push</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="footer-minimal">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <h3>GitGuide</h3>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <a href="search.html">Search</a>
+                    <a href="commands.html">Commands</a>
+                    <a href="troubleshooting.html">Troubleshooting</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <a href="search.html?category=Git+Basics">Git Basics</a>
+                    <a href="search.html?category=GitHub">GitHub</a>
+                    <a href="search.html?category=Branching">Branching</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Project</h4>
+                    <a href="#">About</a>
+                    <a href="#">GitHub</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 GitGuide</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>

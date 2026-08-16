@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Read step-by-step Git guides with commands, tips, and solutions.">
+    <title>Article – GitGuide</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ========== NAVIGATION ========== -->
+    <nav class="navbar" aria-label="Main navigation">
+        <div class="container">
+            <a href="index.html" class="navbar-brand">
+                <span class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <circle cx="18" cy="18" r="3"></circle>
+                        <path d="M6 9v6"></path>
+                        <path d="M18 15v-2a3 3 0 0 0-3-3 3 3 0 0 0-3 3v2"></path>
+                    </svg>
+                </span>
+                GitGuide
+            </a>
+
+            <button class="hamburger" id="hamburger" aria-label="Toggle navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="navbar-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="search.html">Search</a>
+                <a href="commands.html">Commands</a>
+                <a href="troubleshooting.html">Troubleshooting</a>
+                <a href="login.html">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== READING PROGRESS ========== -->
+    <div class="progress-container">
+        <div class="progress-bar" id="readingProgressBar"></div>
+    </div>
+
+    <!-- ========== ARTICLE CONTENT ========== -->
+    <main class="article-page" id="articlePage" style="padding-top: 4rem;">
+        <!-- All content is rendered by article.js -->
+        <div class="empty-state" id="articleNotFound" style="display:none;">
+            <div class="empty-icon">📄</div>
+            <h3>Article not found</h3>
+            <p>The article you are looking for does not exist.</p>
+            <a href="index.html" class="btn btn-primary" style="margin-top:1rem;">Go Home</a>
+        </div>
+    </main>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="footer-minimal">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <h3>GitGuide</h3>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <a href="search.html">Search</a>
+                    <a href="commands.html">Commands</a>
+                    <a href="troubleshooting.html">Troubleshooting</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <a href="search.html?category=Git+Basics">Git Basics</a>
+                    <a href="search.html?category=GitHub">GitHub</a>
+                    <a href="search.html?category=Branching">Branching</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Project</h4>
+                    <a href="#">About</a>
+                    <a href="#">GitHub</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 GitGuide</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/article.js"></script>
+
+</body>
+</html>

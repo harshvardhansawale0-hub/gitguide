@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GitGuide admin dashboard – manage articles, categories, comments, and view audit logs.">
+    <title>Dashboard – GitGuide</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ========== NAVIGATION ========== -->
+    <nav class="navbar" aria-label="Main navigation">
+        <div class="container">
+            <a href="index.html" class="navbar-brand">
+                <span class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <circle cx="18" cy="18" r="3"></circle>
+                        <path d="M6 9v6"></path>
+                        <path d="M18 15v-2a3 3 0 0 0-3-3 3 3 0 0 0-3 3v2"></path>
+                    </svg>
+                </span>
+                GitGuide
+            </a>
+
+            <button class="hamburger" id="hamburger" aria-label="Toggle navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="navbar-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="search.html">Search</a>
+                <a href="commands.html">Commands</a>
+                <a href="troubleshooting.html">Troubleshooting</a>
+                <a href="dashboard.html" class="active">Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== PAGE TITLE ========== -->
+    <section class="section giant-search-section" style="padding: 8rem 0 4rem;">
+        <div class="container">
+            <div class="giant-search-container reveal" style="text-align:left;">
+                <div class="eyebrow" style="margin-bottom: 1rem;">Workspace</div>
+                <h1 style="margin-bottom: 0.5rem;">Admin Dashboard</h1>
+                <p style="color:var(--text-muted); font-size:1.1rem; max-width:600px;">Manage guides, monitor activity, and configure system settings.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <section class="section" style="padding-top: 0;">
+        <div class="container">
+            <div class="article-split-layout" style="grid-template-columns: 250px 1fr; gap: 4rem;">
+
+                <!-- LEFT SIDEBAR -->
+                <nav class="dashboard-sidebar" id="dashboardSidebar" aria-label="Dashboard navigation" style="position: sticky; top: 100px; display:flex; flex-direction:column; gap:0.5rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1rem;">
+                    <a href="#" class="active" data-tab="overview" onclick="switchTab('overview', this, event)" style="padding:0.75rem 1rem; border-radius:4px; color:var(--text); text-decoration:none; display:flex; align-items:center; gap:0.75rem; transition:all 0.2s; font-weight:500;">
+                        <span style="opacity:0.7;">📊</span> Overview
+                    </a>
+                    <a href="#" data-tab="articles" onclick="switchTab('articles', this, event)" style="padding:0.75rem 1rem; border-radius:4px; color:var(--text-muted); text-decoration:none; display:flex; align-items:center; gap:0.75rem; transition:all 0.2s;">
+                        <span style="opacity:0.7;">📄</span> Guides
+                    </a>
+                    <a href="#" data-tab="categories" onclick="switchTab('categories', this, event)" style="padding:0.75rem 1rem; border-radius:4px; color:var(--text-muted); text-decoration:none; display:flex; align-items:center; gap:0.75rem; transition:all 0.2s;">
+                        <span style="opacity:0.7;">📁</span> Categories
+                    </a>
+                    <a href="#" data-tab="comments" onclick="switchTab('comments', this, event)" style="padding:0.75rem 1rem; border-radius:4px; color:var(--text-muted); text-decoration:none; display:flex; align-items:center; gap:0.75rem; transition:all 0.2s;">
+                        <span style="opacity:0.7;">💬</span> Comments
+                    </a>
+                    <hr style="border:0; border-top:1px solid var(--border); margin:0.5rem 0;">
+                    <a href="#" data-tab="audit" onclick="switchTab('audit', this, event)" style="padding:0.75rem 1rem; border-radius:4px; color:var(--text-muted); text-decoration:none; display:flex; align-items:center; gap:0.75rem; transition:all 0.2s;">
+                        <span style="opacity:0.7;">📋</span> Audit Logs
+                    </a>
+                </nav>
+
+                <!-- MAIN CONTENT -->
+                <div class="dashboard-content" style="min-height: 500px;">
+
+                    <!-- OVERVIEW TAB -->
+                    <div class="dashboard-section active" id="tab-overview">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                            <h2 style="font-size: 1.5rem;">System Overview</h2>
+                        </div>
+                        <div class="stat-grid" id="statGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1.5rem; margin-bottom:3rem;">
+                            <!-- Rendered by dashboard.js -->
+                        </div>
+
+                        <h3 style="margin-bottom:1.5rem; font-size:1.25rem;">Recent Activity</h3>
+                        <div id="recentActivity" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.5rem;">
+                            <!-- Rendered by dashboard.js -->
+                        </div>
+                    </div>
+
+                    <!-- ARTICLES TAB -->
+                    <div class="dashboard-section" id="tab-articles">
+                        <div class="table-container" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;">
+                            <div class="table-header" style="padding:1.5rem 2rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--background);">
+                                <h2 style="margin:0; font-size:1.25rem;">Guides Directory</h2>
+                                <button class="btn btn-primary btn-sm" id="addArticleBtn" onclick="openAddModal()" style="padding:0.5rem 1rem;">+ Add Guide</button>
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table class="data-table" style="width:100%; border-collapse:collapse; text-align:left;">
+                                    <thead>
+                                        <tr style="background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border);">
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">ID</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Guide Title</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Category</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Difficulty</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Status</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="articleTableBody">
+                                        <!-- Rendered by dashboard.js -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CATEGORIES TAB -->
+                    <div class="dashboard-section" id="tab-categories">
+                        <div class="table-container" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;">
+                            <div class="table-header" style="padding:1.5rem 2rem; border-bottom:1px solid var(--border); background:var(--background);">
+                                <h2 style="margin:0; font-size:1.25rem;">Knowledge Categories</h2>
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table class="data-table" style="width:100%; border-collapse:collapse; text-align:left;">
+                                    <thead>
+                                        <tr style="background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border);">
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">ID</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Icon</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Category Name</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Description</th>
+                                            <th style="padding:1rem 2rem; color:var(--text-muted); font-weight:600; font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;">Guides Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="categoryTableBody">
+                                        <!-- Rendered by dashboard.js -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COMMENTS TAB -->
+                    <div class="dashboard-section" id="tab-comments">
+                        <h2 style="margin-bottom:1.5rem; font-size:1.5rem;">User Comments</h2>
+                        <div id="allComments" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem;">
+                            <!-- Rendered by dashboard.js -->
+                        </div>
+                    </div>
+
+                    <!-- AUDIT LOG TAB -->
+                    <div class="dashboard-section" id="tab-audit">
+                        <h2 style="margin-bottom:1.5rem; font-size:1.5rem;">System Audit Logs</h2>
+                        <div class="audit-log" id="auditLog" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.5rem; max-height:500px; overflow-y:auto;">
+                            <!-- Rendered by dashboard.js -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== MODAL (Edit / Add Article) ========== -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h2 id="modalTitle">Edit Article</h2>
+
+            <div class="form-group" style="margin-bottom:1.25rem;">
+                <label for="modalArticleTitle" style="display:block; margin-bottom:0.5rem; font-weight:600;">Title</label>
+                <input type="text" class="form-input" id="modalArticleTitle" placeholder="Article title" style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+            </div>
+
+            <div class="form-group" style="margin-bottom:1.25rem;">
+                <label for="modalArticleCategory" style="display:block; margin-bottom:0.5rem; font-weight:600;">Category</label>
+                <select class="form-select" id="modalArticleCategory" style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                    <!-- Populated by dashboard.js -->
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:1.25rem;">
+                <label for="modalArticleDifficulty" style="display:block; margin-bottom:0.5rem; font-weight:600;">Difficulty</label>
+                <select class="form-select" id="modalArticleDifficulty" style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:1.25rem;">
+                <label for="modalArticleStatus" style="display:block; margin-bottom:0.5rem; font-weight:600;">Status</label>
+                <select class="form-select" id="modalArticleStatus" style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text);">
+                    <option value="Published">Published</option>
+                    <option value="Draft">Draft</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:1.25rem;">
+                <label for="modalArticleDesc" style="display:block; margin-bottom:0.5rem; font-weight:600;">Description</label>
+                <textarea class="form-textarea" id="modalArticleDesc" placeholder="Short description of the article" style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text); min-height:100px;"></textarea>
+            </div>
+
+            <input type="hidden" id="modalArticleId">
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="modalCancelBtn" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" id="modalSaveBtn" onclick="saveArticle()">Save Guide</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <h3>GitGuide</h3>
+                    <p>Simple, practical Git & GitHub guidance for developers.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <a href="search.html">Search</a>
+                    <a href="commands.html">Commands</a>
+                    <a href="troubleshooting.html">Troubleshooting</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <a href="search.html?category=Git+Basics">Git Basics</a>
+                    <a href="search.html?category=GitHub">GitHub</a>
+                    <a href="search.html?category=Branching">Branching</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Project</h4>
+                    <a href="#">About</a>
+                    <a href="#">GitHub</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 GitGuide – Git & GitHub Help Center.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/dashboard.js"></script>
+
+</body>
+</html>

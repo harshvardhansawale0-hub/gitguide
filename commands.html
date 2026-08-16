@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Generate Git commands with the right flags using GitGuide's interactive command synthesizer.">
+    <title>Command Synthesizer – GitGuide</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ========== NAVIGATION ========== -->
+    <nav class="navbar" aria-label="Main navigation">
+        <div class="container">
+            <a href="index.html" class="navbar-brand">
+                <span class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <circle cx="18" cy="18" r="3"></circle>
+                        <path d="M6 9v6"></path>
+                        <path d="M18 15v-2a3 3 0 0 0-3-3 3 3 0 0 0-3 3v2"></path>
+                    </svg>
+                </span>
+                GitGuide
+            </a>
+
+            <button class="hamburger" id="hamburger" aria-label="Toggle navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="navbar-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="search.html">Search</a>
+                <a href="commands.html" class="active">Commands</a>
+                <a href="troubleshooting.html">Troubleshooting</a>
+                <a href="login.html">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== PAGE TITLE ========== -->
+    <section class="section giant-search-section" style="padding: 8rem 0 4rem;">
+        <div class="container">
+            <div class="giant-search-container reveal" style="text-align:center;">
+                <div class="eyebrow" style="margin-bottom: 1rem; justify-content:center;">Developer Tools</div>
+                <h1 style="margin-bottom: 1.5rem;">Git Command Synthesizer</h1>
+                <p style="color:var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto;">Select a Git command and visually construct the exact syntax you need without guessing flags.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <section class="section" style="padding-top: 0;">
+        <div class="container">
+            <div class="article-split-layout" style="display: grid; grid-template-columns: 350px 1fr; gap: 4rem;">
+
+                <!-- LEFT: Command Selection -->
+                <div class="sidebar-box" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; height:fit-content;">
+                    <h3 style="margin-bottom:2rem; font-size:1.25rem;">Configure Command</h3>
+
+                    <div class="form-group" style="margin-bottom: 2rem;">
+                        <label for="commandSelect" style="display:block; margin-bottom:0.75rem; font-weight:600; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Base Command</label>
+                        <select class="form-select" id="commandSelect" style="width:100%; padding:0.75rem 1rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:monospace; font-size:1rem; cursor:pointer;">
+                            <option value="">-- Select a Git command --</option>
+                            <!-- Options rendered by commands.js -->
+                        </select>
+                    </div>
+
+                    <div id="commandDescription" style="margin-bottom:2rem; color:var(--text-muted); font-size:0.95rem; line-height:1.6;"></div>
+
+                    <!-- Argument input -->
+                    <div class="form-group" id="argGroup" style="display:none; margin-bottom:2rem;">
+                        <label for="argInput" id="argLabel" style="display:block; margin-bottom:0.75rem; font-weight:600; font-size:0.9rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Argument</label>
+                        <input type="text" class="form-input" id="argInput" placeholder="" style="width:100%; padding:0.75rem 1rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-family:monospace;">
+                    </div>
+
+                    <!-- Flags -->
+                    <div id="flagsContainer" style="margin-top:2rem;">
+                        <!-- Flags rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- RIGHT: Generated Command -->
+                <div style="display:flex; flex-direction:column; gap:2rem;">
+                    
+                    <div class="code-block terminal-block" style="background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); overflow:hidden;">
+                        <div class="panel-header dark" style="border-bottom:1px solid var(--border);">
+                            <div class="dots"><span></span><span></span><span></span></div>
+                            <div class="panel-title">synthesized command</div>
+                        </div>
+                        <div class="command-output-box" id="commandOutput" style="position:relative; padding:2rem; font-size:1.1rem; min-height:150px; display:flex; align-items:center;">
+                            <button class="copy-btn-overlay" id="copyCommandBtn" aria-label="Copy code" style="position:absolute; right:1rem; top:1rem; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:0.5rem; color:var(--text); cursor:pointer;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                            <div style="font-family:monospace; color:var(--code-text); word-break:break-all; width: 90%;">
+                                <span class="token-prompt" style="color:var(--primary); margin-right:0.5rem;">$</span>
+                                <span id="commandText">Select a command to begin...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Safety Warning -->
+                    <div class="warning-box hidden" id="warningBox" style="display:none; padding:1.5rem; border-radius:var(--radius-lg); align-items:flex-start; gap:1rem; border:1px solid rgba(255,100,100,0.2);">
+                        <span class="warning-icon" style="font-size:1.5rem; line-height:1;">⚠️</span>
+                        <div>
+                            <strong style="display:block; margin-bottom:0.25rem;">Warning</strong>
+                            <p class="warning-text" id="warningText" style="margin:0; font-size:0.95rem; line-height:1.5;">This command can permanently remove local changes or files.</p>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="footer-minimal">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <h3>GitGuide</h3>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <a href="search.html">Search</a>
+                    <a href="commands.html">Commands</a>
+                    <a href="troubleshooting.html">Troubleshooting</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <a href="search.html?category=Git+Basics">Git Basics</a>
+                    <a href="search.html?category=GitHub">GitHub</a>
+                    <a href="search.html?category=Branching">Branching</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Project</h4>
+                    <a href="#">About</a>
+                    <a href="#">GitHub</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 GitGuide</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/commands.js"></script>
+
+</body>
+</html>

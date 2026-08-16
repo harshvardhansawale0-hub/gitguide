@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Search Git and GitHub guides, filter by category and difficulty.">
+    <title>Search – GitGuide</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ========== NAVIGATION ========== -->
+    <nav class="navbar" aria-label="Main navigation">
+        <div class="container">
+            <a href="index.html" class="navbar-brand">
+                <span class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="6" cy="6" r="3"></circle>
+                        <circle cx="18" cy="18" r="3"></circle>
+                        <path d="M6 9v6"></path>
+                        <path d="M18 15v-2a3 3 0 0 0-3-3 3 3 0 0 0-3 3v2"></path>
+                    </svg>
+                </span>
+                GitGuide
+            </a>
+
+            <button class="hamburger" id="hamburger" aria-label="Toggle navigation menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="navbar-links" id="navLinks">
+                <a href="index.html">Home</a>
+                <a href="search.html" class="active">Search</a>
+                <a href="commands.html">Commands</a>
+                <a href="troubleshooting.html">Troubleshooting</a>
+                <a href="login.html">Login</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== GIANT SEARCH HEADER ========== -->
+    <section class="section giant-search-section" style="padding: 8rem 0 4rem;">
+        <div class="container">
+            <div class="giant-search-container reveal">
+                <h1 style="margin-bottom: 2rem;">Search the Knowledge Base</h1>
+                
+                <div class="giant-search-form">
+                    <svg class="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search Git commands, errors, or topics..."
+                        aria-label="Search articles"
+                        autocomplete="off"
+                    >
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <section class="section" style="padding-top: 0;">
+        <div class="container">
+            <div class="search-split-layout" style="display: grid; grid-template-columns: 250px 1fr; gap: 4rem; align-items: start; padding-bottom: 6rem;">
+
+                <!-- LEFT SIDEBAR: Filters -->
+                <aside class="sidebar article-sidebar" aria-label="Search filters" style="position: sticky; top: 100px;">
+                    <div class="sidebar-box" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem;">
+                        <h4 style="margin-bottom: 1.5rem; color:var(--text); text-transform:uppercase; letter-spacing:0.05em; font-size:0.85rem;">Category</h4>
+                        <div class="checkbox-group" id="categoryFilters" style="display:flex; flex-direction:column; gap:0.75rem;">
+                            <!-- Rendered by search.js -->
+                        </div>
+
+                        <hr style="border:0; border-top:1px solid var(--border); margin: 2rem 0;">
+
+                        <h4 style="margin-bottom: 1.5rem; color:var(--text); text-transform:uppercase; letter-spacing:0.05em; font-size:0.85rem;">Difficulty</h4>
+                        <div class="checkbox-group" id="difficultyFilters" style="display:flex; flex-direction:column; gap:0.75rem;">
+                            <label class="checkbox-label" style="display:flex; align-items:center; gap:0.75rem; cursor:pointer;">
+                                <input type="radio" name="difficulty" value="all" checked>
+                                All Levels
+                            </label>
+                            <label class="checkbox-label" style="display:flex; align-items:center; gap:0.75rem; cursor:pointer;">
+                                <input type="radio" name="difficulty" value="Beginner">
+                                Beginner
+                            </label>
+                            <label class="checkbox-label" style="display:flex; align-items:center; gap:0.75rem; cursor:pointer;">
+                                <input type="radio" name="difficulty" value="Intermediate">
+                                Intermediate
+                            </label>
+                            <label class="checkbox-label" style="display:flex; align-items:center; gap:0.75rem; cursor:pointer;">
+                                <input type="radio" name="difficulty" value="Advanced">
+                                Advanced
+                            </label>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- MAIN: Search Results -->
+                <main class="article-main">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem;">
+                        <h3 style="font-size: 1.5rem;">Results</h3>
+                        <p class="result-count" id="resultCount" style="color:var(--text-muted); font-size:0.9rem; margin:0;"></p>
+                    </div>
+
+                    <div class="documentation-feed" id="resultsGrid">
+                        <!-- Rendered by search.js -->
+                    </div>
+                    
+                    <div class="empty-state" id="emptyState" style="display:none; text-align:center; padding: 4rem 2rem; background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius-lg);">
+                        <div class="empty-icon" style="font-size:3rem; margin-bottom:1rem;">🔍</div>
+                        <h3 style="margin-bottom:0.5rem;">No guides found</h3>
+                        <p style="color:var(--text-muted);">Try adjusting your search or filters to find what you're looking for.</p>
+                    </div>
+                </main>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="footer-minimal">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <h3>GitGuide</h3>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <a href="search.html">Search</a>
+                    <a href="commands.html">Commands</a>
+                    <a href="troubleshooting.html">Troubleshooting</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <a href="search.html?category=Git+Basics">Git Basics</a>
+                    <a href="search.html?category=GitHub">GitHub</a>
+                    <a href="search.html?category=Branching">Branching</a>
+                </div>
+                <div class="footer-links">
+                    <h4>Project</h4>
+                    <a href="#">About</a>
+                    <a href="#">GitHub</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 GitGuide</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/search.js"></script>
+
+</body>
+</html>
