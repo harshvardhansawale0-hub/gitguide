@@ -15,6 +15,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "groq-sdk": "^1.5.0",
     "jsonwebtoken": "^9.0.3"
   },
   "keywords": [
@@ -26,5 +27,9 @@
     "fullstack"
   ],
   "author": "GitGuide Team",
-  "license": "ISC"
+  "license": "ISC",
+  "allowScripts": {
+    "groq-sdk@1.5.0": true,
+    "better-sqlite3@12.11.1": true
+  }
 }
