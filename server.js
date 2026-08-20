@@ -41,6 +41,7 @@ app.use('/api/bookmarks', require('./routes/bookmarks'));
 app.use('/api/commands', require('./routes/commands'));
 app.use('/api/troubleshooting', require('./routes/troubleshooting'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/chatbot', require('./routes/chatbot'));
 
 // API Health Check & Info
 app.get('/api/health', (req, res) => {
