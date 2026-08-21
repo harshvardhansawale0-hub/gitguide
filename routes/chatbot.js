@@ -12,7 +12,21 @@ Answer clearly and concisely using Markdown formatting:
 - Use \`\`\`bash code blocks for commands
 - Use **bold** for emphasis
 - Use ### headers for sections when helpful
+- When explaining push rejections or remote divergence, mention 'git pull --rebase' or 'git rebase'
 Keep answers focused and practical, aimed at developers learning Git.`;
+
+const CATEGORIES = [
+    { id: 'basics', icon: '📘', label: 'Git Basics', description: 'Core commands, init, add, commit, status' },
+    { id: 'branching', icon: '🌿', label: 'Branching & Merging', description: 'Switch, checkout, merge, rebase' },
+    { id: 'conflicts', icon: '⚔️', label: 'Merge Conflicts', description: 'Resolving conflict markers and rebasing' },
+    { id: 'github', icon: '🐙', label: 'GitHub Workflow', description: 'Remotes, PRs, PAT tokens, SSH setup' },
+    { id: 'undo', icon: '⏪', label: 'Undoing Changes', description: 'Reset, restore, revert, reflog' }
+];
+
+// GET /api/chatbot/categories
+router.get('/categories', (req, res) => {
+    res.json({ success: true, count: CATEGORIES.length, data: CATEGORIES });
+});
 
 router.post('/query', async (req, res) => {
     try {

@@ -43,42 +43,88 @@
     </nav>
 
     <!-- ========== PAGE TITLE ========== -->
-    <section class="section giant-search-section" style="padding: 8rem 0 4rem;">
+    <section class="section giant-search-section" style="padding: 8rem 0 3rem;">
         <div class="container">
             <div class="giant-search-container reveal" style="text-align:center;">
-                <div class="eyebrow" style="margin-bottom: 1rem; justify-content:center;">Error Log Analyzer</div>
-                <h1 style="margin-bottom: 1.5rem;">Git Troubleshooting</h1>
-                <p style="color:var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto;">Paste your Git or GitHub error below to instantly find the root cause and a proven solution.</p>
+                <div class="ai-hero-badge" style="display:inline-flex; align-items:center; gap:0.5rem; background:rgba(0, 240, 255, 0.1); border:1px solid rgba(0, 240, 255, 0.3); padding:0.4rem 1rem; border-radius:999px; font-size:0.85rem; font-weight:600; color:var(--primary); margin-bottom:1.2rem; box-shadow:0 0 20px rgba(0,240,255,0.15);">
+                    <span style="display:inline-block; animation: pulseGlow 2s infinite; border-radius:50%; width:8px; height:8px; background:var(--primary);"></span>
+                    ⚡ Powered by Groq AI Diagnostic Engine
+                </div>
+                <h1 style="margin-bottom: 1.2rem; font-size: 2.8rem; letter-spacing: -0.02em;">Git Error Log Analyzer</h1>
+                <p style="color:var(--text-muted); font-size:1.15rem; max-width:640px; margin:0 auto 1.5rem; line-height: 1.6;">
+                    Paste any Git or GitHub terminal error below. Groq AI instantly identifies the root cause, offers an immediate quick fix, and generates step-by-step solutions.
+                </p>
             </div>
         </div>
     </section>
 
     <!-- ========== MAIN CONTENT ========== -->
     <section class="section" style="padding-top: 0;">
-        <div class="container" style="max-width:800px;">
+        <div class="container" style="max-width:860px;">
 
             <!-- Terminal-style input area -->
-            <div class="terminal-block" style="background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); margin-bottom: 2rem;">
-                <div class="panel-header dark" style="border-bottom:1px solid rgba(255,255,255,0.1);">
-                    <div class="dots"><span></span><span></span><span></span></div>
-                    <div class="panel-title">paste your terminal error here</div>
+            <div class="terminal-block ai-terminal" style="background:var(--code-bg); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg); margin-bottom: 1.5rem; transition: border-color 0.3s ease, box-shadow 0.3s ease;">
+                <div class="panel-header dark" style="border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center; padding:0.85rem 1.25rem;">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <div class="dots"><span></span><span></span><span></span></div>
+                        <div class="panel-title" style="font-family:monospace; font-size:0.85rem; color:var(--text-muted);">terminal error input</div>
+                    </div>
+                    <button type="button" id="clearInputBtn" style="background:transparent; border:none; color:var(--text-muted); font-size:0.75rem; cursor:pointer; padding:0.2rem 0.5rem; border-radius:4px; transition:color 0.2s;" title="Clear input">
+                        ✕ Clear
+                    </button>
                 </div>
                 <textarea
                     id="errorInput"
-                    placeholder="remote: Support for password authentication was removed.
+                    placeholder="Paste your Git / GitHub terminal error here...
+
+Example:
+remote: Support for password authentication was removed.
 fatal: Authentication failed for 'https://github.com/...'"
                     aria-label="Paste your Git error"
-                    style="width:100%; min-height:200px; background:transparent; border:none; padding:1.5rem; color:var(--code-text); font-family:monospace; font-size:1rem; resize:vertical;"
+                    style="width:100%; min-height:180px; background:transparent; border:none; padding:1.5rem; color:var(--code-text); font-family:'Fira Code', Consolas, Monaco, monospace; font-size:0.95rem; line-height:1.6; resize:vertical; outline:none;"
                 ></textarea>
             </div>
 
-            <button class="btn btn-primary" id="analyzeBtn" style="width:100%; justify-content:center; padding:1rem; font-size:1.1rem; box-shadow: 0 0 20px rgba(0,255,255,0.2);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.5rem;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                Analyze Error
-            </button>
+            <!-- Quick sample chips -->
+            <div class="sample-chips-wrapper" style="margin-bottom: 1.5rem;">
+                <div style="font-size:0.8rem; font-weight:600; color:var(--text-muted); margin-bottom:0.6rem; text-transform:uppercase; letter-spacing:0.05em;">
+                    Or test with common errors:
+                </div>
+                <div class="sample-chips-row" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                    <button type="button" class="sample-error-pill" data-error="remote: Support for password authentication was removed on August 13, 2021.&#10;fatal: Authentication failed for 'https://github.com/user/repo.git/'">
+                        🔐 Password Auth Removed
+                    </button>
+                    <button type="button" class="sample-error-pill" data-error="To https://github.com/user/repo.git&#10; ! [rejected]        main -> main (fetch first)&#10;error: failed to push some refs to 'https://github.com/user/repo.git'&#10;hint: Updates were rejected because the remote contains work that you do not have locally.">
+                        🚫 Push Rejected (Fetch First)
+                    </button>
+                    <button type="button" class="sample-error-pill" data-error="error: src refspec main does not match any&#10;error: failed to push some refs to 'https://github.com/user/repo.git'">
+                        🌿 src refspec main does not match
+                    </button>
+                    <button type="button" class="sample-error-pill" data-error="fatal: refusing to merge unrelated histories">
+                        ⚠️ Unrelated Histories
+                    </button>
+                    <button type="button" class="sample-error-pill" data-error="Auto-merging index.js&#10;CONFLICT (content): Merge conflict in index.js&#10;Automatic merge failed; fix conflicts and then commit the result.">
+                        ⚔️ Merge Conflict
+                    </button>
+                    <button type="button" class="sample-error-pill" data-error="You are in 'detached HEAD' state. You can look around, make experimental changes and commit them...">
+                        ⏳ Detached HEAD State
+                    </button>
+                </div>
+            </div>
+
+            <!-- Analyze button -->
+            <div style="display:flex; gap:1rem; align-items:center;">
+                <button class="btn btn-primary" id="analyzeBtn" style="flex:1; justify-content:center; padding:1rem 1.5rem; font-size:1.1rem; font-weight:600; box-shadow: 0 0 25px rgba(0,240,255,0.25); border-radius:var(--radius-lg); transition: all 0.25s ease;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.5rem;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    Analyze with Groq AI
+                </button>
+            </div>
+            <div style="text-align:center; font-size:0.8rem; color:var(--text-muted); margin-top:0.6rem;">
+                💡 Tip: Press <kbd style="background:rgba(255,255,255,0.1); padding:0.15rem 0.4rem; border-radius:4px; font-family:monospace; border:1px solid var(--border);">Ctrl + Enter</kbd> to analyze instantly.
+            </div>
 
             <!-- Results area -->
-            <div id="resultsArea" style="margin-top: 4rem;">
+            <div id="resultsArea" style="margin-top: 3rem;">
                 <!-- Results rendered by troubleshooting.js -->
             </div>
 

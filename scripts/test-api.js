@@ -178,8 +178,15 @@ async function runTests() {
 module.exports = runTests;
 
 if (require.main === module) {
-    runTests().catch(err => {
-        console.error(err);
-        process.exit(1);
-    });
+    const { server } = require('../server');
+    setTimeout(async () => {
+        try {
+            await runTests();
+        } catch (err) {
+            console.error(err);
+            process.exit(1);
+        } finally {
+            server.close();
+        }
+    }, 500);
 }
