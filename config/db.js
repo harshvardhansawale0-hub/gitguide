@@ -142,6 +142,19 @@ function initSchema() {
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
         );
 
+        -- 12. ARTICLE MEDIA TABLE
+        CREATE TABLE IF NOT EXISTS article_media (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id INTEGER NOT NULL,
+            media_type VARCHAR(20) NOT NULL CHECK(media_type IN ('image', 'video', 'url')),
+            media_url TEXT NOT NULL,
+            file_name VARCHAR(255),
+            mime_type VARCHAR(100),
+            file_size INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+        );
+
         -- INDEXES FOR FAST SEARCH & JOINS
         CREATE INDEX IF NOT EXISTS idx_articles_category ON articles(category_id);
         CREATE INDEX IF NOT EXISTS idx_articles_difficulty ON articles(difficulty);
@@ -150,6 +163,7 @@ function initSchema() {
         CREATE INDEX IF NOT EXISTS idx_comments_article ON comments(article_id);
         CREATE INDEX IF NOT EXISTS idx_ratings_article ON ratings(article_id);
         CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
+        CREATE INDEX IF NOT EXISTS idx_article_media_article ON article_media(article_id);
     `);
 }
 

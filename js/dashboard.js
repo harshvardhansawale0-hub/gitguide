@@ -41,21 +41,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Attach event listeners to sidebar items
     initSidebarListeners();
 
-    // Modal event listeners
-    var addBtn = document.getElementById('addArticleBtn');
-    if (addBtn) {
-        addBtn.addEventListener('click', openAddModal);
-    }
-
-    var cancelBtn = document.getElementById('modalCancelBtn');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', closeModal);
-    }
-
-    var saveBtn = document.getElementById('modalSaveBtn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveArticle);
-    }
+    // Modal event listeners are handled by inline onclick attributes in HTML
 
     // Close modal when clicking overlay
     var overlay = document.getElementById('modalOverlay');
@@ -63,6 +49,15 @@ document.addEventListener('DOMContentLoaded', async function () {
         overlay.addEventListener('click', function (e) {
             if (e.target === overlay) {
                 closeModal();
+            }
+        });
+    }
+
+    var mediaOverlay = document.getElementById('mediaModalOverlay');
+    if (mediaOverlay) {
+        mediaOverlay.addEventListener('click', function (e) {
+            if (e.target === mediaOverlay) {
+                closeMediaModal();
             }
         });
     }
@@ -84,7 +79,7 @@ function initSidebarListeners() {
 // ---- LOAD LIVE DASHBOARD DATA ----
 
 async function loadAllDashboardData() {
-    if (typeof API !== 'undefined' && API.getToken()) {
+    if (typeof API !== 'undefined') {
         try {
             // 1. Articles
             var artRes = await API.articles.getAll({ status: 'all' });
@@ -240,6 +235,13 @@ function renderArticleTable() {
         html += '  <td data-label="Actions">';
         html += '    <div class="table-actions">';
         html += '      <button class="btn btn-secondary btn-sm" onclick="openEditModal(' + article.id + ')">✏️ Edit</button>';
+        html += '      <button type="button" class="article-upload-btn" onclick="openMediaModal(' + article.id + ')">';
+        html += '          <svg class="article-upload-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">';
+        html += '              <path d="M12 15V4M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
+        html += '              <path d="M5 14V19C5 19.5523 5.44772 20 6 20H18C18.5523 20 19 19.5523 19 19V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>';
+        html += '          </svg>';
+        html += '          <span>Upload</span>';
+        html += '      </button>';
         html += '      <button class="btn btn-danger btn-sm" onclick="deleteArticle(' + article.id + ')">🗑️ Delete</button>';
         html += '    </div>';
         html += '  </td>';
@@ -403,6 +405,12 @@ function closeModal() {
 // ---- SAVE ARTICLE (Add or Edit) ----
 
 async function saveArticle() {
+    var saveBtn = document.getElementById('modalSaveBtn');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+    }
+
     var idInput = document.getElementById('modalArticleId').value;
     var title = document.getElementById('modalArticleTitle').value.trim();
     var category = document.getElementById('modalArticleCategory').value;
@@ -413,6 +421,10 @@ async function saveArticle() {
 
     if (!title || !description) {
         showToast('Please fill in all required fields.', 'error');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Guide';
+        }
         return;
     }
 
@@ -479,6 +491,11 @@ async function saveArticle() {
     renderArticleTable();
     renderAuditLog();
     renderRecentActivity();
+
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Guide';
+    }
 }
 
 // ---- DELETE ARTICLE ----
@@ -523,6 +540,178 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ==========================================
+// MEDIA UPLOAD MODAL LOGIC
+// ==========================================
+
+let currentMediaTab = 'file';
+
+async function openMediaModal(articleId) {
+    document.getElementById('mediaModalArticleId').value = articleId;
+    document.getElementById('mediaModalOverlay').classList.add('active');
+    document.getElementById('mediaFileInput').value = '';
+    document.getElementById('mediaUrlInput').value = '';
+
+    // Load existing media
+    renderAttachedMedia(articleId);
+}
+
+function closeMediaModal() {
+    document.getElementById('mediaModalOverlay').classList.remove('active');
+}
+
+function switchMediaTab(tabName) {
+    currentMediaTab = tabName;
+
+    // Reset tabs
+    document.getElementById('mediaTabBtnFile').className = 'tab-btn';
+    document.getElementById('mediaTabBtnFile').style.borderBottom = '2px solid transparent';
+    document.getElementById('mediaTabBtnFile').style.color = 'var(--text-muted)';
+
+    document.getElementById('mediaTabBtnUrl').className = 'tab-btn';
+    document.getElementById('mediaTabBtnUrl').style.borderBottom = '2px solid transparent';
+    document.getElementById('mediaTabBtnUrl').style.color = 'var(--text-muted)';
+
+    document.getElementById('mediaTabFile').style.display = 'none';
+    document.getElementById('mediaTabUrl').style.display = 'none';
+
+    // Set active
+    if (tabName === 'file') {
+        document.getElementById('mediaTabBtnFile').className = 'tab-btn active';
+        document.getElementById('mediaTabBtnFile').style.borderBottom = '2px solid var(--primary)';
+        document.getElementById('mediaTabBtnFile').style.color = 'var(--text)';
+        document.getElementById('mediaTabFile').style.display = 'block';
+    } else {
+        document.getElementById('mediaTabBtnUrl').className = 'tab-btn active';
+        document.getElementById('mediaTabBtnUrl').style.borderBottom = '2px solid var(--primary)';
+        document.getElementById('mediaTabBtnUrl').style.color = 'var(--text)';
+        document.getElementById('mediaTabUrl').style.display = 'block';
+    }
+}
+
+async function uploadMedia() {
+    const articleId = document.getElementById('mediaModalArticleId').value;
+    const btn = document.getElementById('uploadMediaBtn');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Uploading...';
+
+    try {
+        let payload = {};
+
+        if (currentMediaTab === 'file') {
+            const fileInput = document.getElementById('mediaFileInput');
+            if (fileInput.files.length === 0) {
+                showToast('Please select a file to upload.', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+            if (file.size > MAX_SIZE) {
+                showToast('File size must be less than 50MB.', 'error');
+                return;
+            }
+
+            // Convert to Base64
+            const dataBase64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+
+            payload = {
+                media_type: file.type.startsWith('video') ? 'video' : 'image',
+                file_name: file.name,
+                mime_type: file.type,
+                file_size: file.size,
+                data_base64: dataBase64
+            };
+
+        } else if (currentMediaTab === 'url') {
+            const urlInput = document.getElementById('mediaUrlInput').value.trim();
+            if (!urlInput) {
+                showToast('Please enter a valid URL.', 'error');
+                return;
+            }
+
+            payload = {
+                media_type: 'url',
+                media_url: urlInput
+            };
+        }
+
+        const res = await API.media.upload(articleId, payload);
+        if (res.success) {
+            showToast('Media uploaded successfully!', 'success');
+            document.getElementById('mediaFileInput').value = '';
+            document.getElementById('mediaUrlInput').value = '';
+            renderAttachedMedia(articleId);
+            loadAllDashboardData();
+        } else {
+            showToast(res.message || 'Upload failed.', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Error during upload.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+async function renderAttachedMedia(articleId) {
+    const listDiv = document.getElementById('attachedMediaList');
+    listDiv.innerHTML = '<p>Loading media...</p>';
+
+    try {
+        const res = await API.media.getByArticle(articleId);
+        if (res.success) {
+            if (res.data.length === 0) {
+                listDiv.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No media attached to this article.</p>';
+                return;
+            }
+
+            let html = '';
+            res.data.forEach(media => {
+                html += '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding:0.5rem 0;">';
+                html += '  <div style="display:flex; flex-direction:column;">';
+                html += '    <strong>' + (media.media_type.toUpperCase()) + '</strong>';
+                html += '    <a href="' + escapeHtml(media.media_url) + '" target="_blank" style="font-size:0.85rem; color:var(--primary); word-break:break-all;">' + escapeHtml(media.media_url) + '</a>';
+                html += '  </div>';
+                html += '  <button class="btn btn-danger btn-sm" onclick="deleteMedia(' + media.id + ', ' + articleId + ')">Delete</button>';
+                html += '</div>';
+            });
+            listDiv.innerHTML = html;
+        } else {
+            listDiv.innerHTML = '<p style="color:red;">Failed to load media.</p>';
+        }
+    } catch (err) {
+        console.error(err);
+        listDiv.innerHTML = '<p style="color:red;">Error loading media.</p>';
+    }
+}
+
+async function deleteMedia(mediaId, articleId) {
+    if (!confirm('Are you sure you want to delete this media?')) return;
+
+    try {
+        const res = await API.media.delete(mediaId);
+        if (res.success) {
+            showToast('Media deleted.', 'success');
+            renderAttachedMedia(articleId);
+            loadAllDashboardData();
+        } else {
+            showToast(res.message || 'Deletion failed.', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Error during deletion.', 'error');
+    }
+}
+
+
 // Attach all interactive handlers to window for inline onclick compatibility
 window.switchTab = switchTab;
 window.openAddModal = openAddModal;
@@ -531,3 +720,10 @@ window.closeModal = closeModal;
 window.saveArticle = saveArticle;
 window.deleteArticle = deleteArticle;
 window.deleteComment = deleteComment;
+
+// Media Window functions
+window.openMediaModal = openMediaModal;
+window.closeMediaModal = closeMediaModal;
+window.switchMediaTab = switchMediaTab;
+window.uploadMedia = uploadMedia;
+window.deleteMedia = deleteMedia;
