@@ -112,10 +112,10 @@ router.get('/', (req, res) => {
         const params = [];
 
         // Status filter (defaults to 'Published' unless admin requests otherwise)
-        if (status) {
+        if (status && status.toLowerCase() !== 'all') {
             sql += ' AND a.status = ?';
             params.push(status);
-        } else {
+        } else if (!status) {
             sql += " AND a.status = 'Published'";
         }
 

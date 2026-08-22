@@ -192,6 +192,23 @@
             }
         },
 
+        // --- MEDIA API ---
+        media: {
+            getByArticle: async function (articleId) {
+                return await request('/media/' + articleId);
+            },
+            upload: async function (articleId, data) {
+                // data contains: media_type, data_base64, file_name, mime_type, file_size, media_url
+                return await request('/media/' + articleId, {
+                    method: 'POST',
+                    body: data
+                });
+            },
+            delete: async function (mediaId) {
+                return await request('/media/' + mediaId, { method: 'DELETE' });
+            }
+        },
+
         // --- COMMENTS API ---
         comments: {
             getByArticle: async function (articleId) {
