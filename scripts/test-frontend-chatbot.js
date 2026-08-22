@@ -53,7 +53,7 @@ async function runFrontendTests() {
         // 3. Check chatbot.js served correctly
         const jsRes = await fetchUrl('/js/chatbot.js');
         assert(
-            jsRes.status === 200 && jsRes.body.includes('initChatbot') && jsRes.body.includes('BLACK_CAT_SVG'),
+            jsRes.status === 200 && jsRes.body.includes('AVATAR_SVG') && jsRes.body.includes('renderMarkdown'),
             'chatbot.js served with full controller logic, SVG templates, and markdown parsers'
         );
 
@@ -90,7 +90,18 @@ async function runFrontendTests() {
     if (failed > 0) process.exit(1);
 }
 
-runFrontendTests().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
+if (require.main === module) {
+    const { server } = require('../server');
+    setTimeout(async () => {
+        try {
+            await runFrontendTests();
+        } catch (err) {
+            console.error(err);
+            process.exit(1);
+        } finally {
+            server.close();
+        }
+    }, 500);
+}
+
+module.exports = runFrontendTests;

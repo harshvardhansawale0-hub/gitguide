@@ -138,7 +138,18 @@ async function runE2ESimulation() {
     console.log('\n🎉 ALL FULL-STACK CHECKS PASSED PERFECTLY!\n');
 }
 
-runE2ESimulation().catch(err => {
-    console.error('❌ Error during E2E verification:', err);
-    process.exit(1);
-});
+if (require.main === module) {
+    const { server } = require('../server');
+    setTimeout(async () => {
+        try {
+            await runE2ESimulation();
+        } catch (err) {
+            console.error('❌ Error during E2E verification:', err);
+            process.exit(1);
+        } finally {
+            server.close();
+        }
+    }, 500);
+}
+
+module.exports = runE2ESimulation;
