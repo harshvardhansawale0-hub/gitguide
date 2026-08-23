@@ -44,6 +44,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     renderArticle(article);
     initReadingProgress();
+
+    // Load media sidebar for this article (non-blocking)
+    loadAndRenderArticleMedia(articleId);
 });
 
 // ---- READING PROGRESS ----
@@ -59,6 +62,64 @@ function initReadingProgress() {
     });
 }
 
+// ============================================================
+// LIGHTBOX FUNCTIONALITY
+// ============================================================
+window.openMediaLightbox = function(url, title) {
+    var lightbox = document.getElementById('articleImageLightbox');
+    if (!lightbox) {
+        lightbox = document.createElement('div');
+        lightbox.id = 'articleImageLightbox';
+        lightbox.className = 'article-image-lightbox';
+        
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'article-lightbox-close';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.setAttribute('aria-label', 'Close');
+        
+        var content = document.createElement('div');
+        content.className = 'article-lightbox-content';
+        
+        var img = document.createElement('img');
+        img.id = 'articleLightboxImage';
+        
+        content.appendChild(img);
+        lightbox.appendChild(closeBtn);
+        lightbox.appendChild(content);
+        document.body.appendChild(lightbox);
+        
+        closeBtn.addEventListener('click', closeMediaLightbox);
+        lightbox.addEventListener('click', function(e) {
+            if (e.target === lightbox || e.target === content) {
+                closeMediaLightbox();
+            }
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && lightbox.style.display !== 'none') {
+                closeMediaLightbox();
+            }
+        });
+    }
+    
+    var imgEl = document.getElementById('articleLightboxImage');
+    imgEl.src = url;
+    imgEl.alt = title || 'Enlarged article image';
+    
+    lightbox.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeMediaLightbox = function() {
+    var lightbox = document.getElementById('articleImageLightbox');
+    if (lightbox) {
+        lightbox.style.display = 'none';
+        var imgEl = document.getElementById('articleLightboxImage');
+        if (imgEl) imgEl.src = '';
+        document.body.style.overflow = '';
+    }
+};
+
 // ---- RENDER ARTICLE ----
 
 function renderArticle(article) {
@@ -67,14 +128,15 @@ function renderArticle(article) {
 
     var html = '';
 
-    html += '<div class="container">';
-    html += '<div class="article-single-layout" style="max-width: 900px; margin: 0 auto; width: 100%;">';
+    html += '<div class="article-page-container">';
+    html += '<div class="article-layout">';
+    html += '<main class="article-main-content">';
     
     // Header
-    html += '<div class="article-header" style="text-align: center; margin-bottom: 4rem;">';
-    html += '  <a href="search.html?category=' + encodeURIComponent(article.category) + '" class="btn btn-secondary btn-sm" style="margin-bottom:2rem; display:inline-flex;">← Back to ' + article.category + '</a>';
-    html += '  <h1 style="margin-bottom:1.5rem; font-size: clamp(3rem, 6vw, 4.5rem); line-height: 1.1;">' + article.title + '</h1>';
-    html += '  <div class="article-meta" style="display:flex; justify-content:center; gap:2rem; color:var(--text-muted); font-size:1rem; padding-bottom: 2rem; border-bottom:1px solid var(--border);">';
+    html += '<div class="article-header">';
+    html += '  <a href="search.html?category=' + encodeURIComponent(article.category) + '" class="article-back-btn">← Back to ' + article.category + '</a>';
+    html += '  <h1 class="article-title">' + escapeHtml(article.title) + '</h1>';
+    html += '  <div class="article-meta">';
     html += '    <span class="meta-item">📖 ' + (article.readingTime || '5 min') + '</span>';
     html += '    <span class="meta-item">✍️ ' + (article.author || 'GitGuide Team') + '</span>';
     html += '    <span class="meta-item">' + article.difficulty + '</span>';
@@ -201,10 +263,15 @@ function renderArticle(article) {
     html += '  <div class="comment-list" id="commentList"></div>';
     html += '</div>';
 
-    html += '</div>';
-    html += '</div>';
+    html += '</main>'; // close .article-main-content
+    // Media sidebar placeholder (populated async)
+    html += '<aside class="article-media-sidebar" id="articleMediaSidebar"></aside>';
+
+    html += '</div>'; // close .article-layout
+    html += '</div>'; // close .container
 
     page.innerHTML = html;
+
 
     // Prefill name if user logged in
     var loggedUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
@@ -414,4 +481,152 @@ function escapeForJs(text) {
         .replace(/"/g, '\\"')
         .replace(/\n/g, '\\n')
         .replace(/\r/g, '');
+}
+
+// ============================================================
+// MEDIA SIDEBAR – Load & Render article-specific media
+// ============================================================
+
+async function loadAndRenderArticleMedia(articleId) {
+    var sidebar = document.getElementById('articleMediaSidebar');
+    if (!sidebar) return;
+
+    try {
+        var res = null;
+        if (typeof API !== 'undefined' && API.media) {
+            res = await API.media.getByArticle(articleId);
+        }
+
+        if (!res || !res.success || !Array.isArray(res.data) || res.data.length === 0) {
+            sidebar.style.display = 'block';
+            var layout = document.querySelector('.article-layout');
+            if (layout) layout.classList.remove('no-sidebar');
+            sidebar.innerHTML = '<div class="article-media-section"><h3>Attached Media</h3><p style="color:var(--text-muted); font-size:0.9rem;">No media available for this article yet.</p></div>';
+            return;
+        }
+        var media = res.data;
+
+        var videos = media.filter(function (m) { return m.media_type === 'video'; });
+        var images = media.filter(function (m) { return m.media_type === 'image'; });
+        var urls   = media.filter(function (m) { return m.media_type === 'url'; });
+
+        if (videos.length === 0 && images.length === 0 && urls.length === 0) {
+            sidebar.style.display = 'block';
+            var layout = document.querySelector('.article-layout');
+            if (layout) layout.classList.remove('no-sidebar');
+            sidebar.innerHTML = '<div class="article-media-section"><h3>Attached Media</h3><p style="color:var(--text-muted); font-size:0.9rem;">No media available for this article yet.</p></div>';
+            return;
+        }
+        var shtml = '';
+
+        // ---- Featured Videos ----
+        if (videos.length > 0) {
+            shtml += '<div class="article-media-section video-section">';
+            shtml += '  <h3>Featured Videos</h3>';
+            videos.forEach(function (v) {
+                shtml += '  <div class="featured-video-card">';
+                shtml += '    <video controls preload="metadata" playsinline>';
+                shtml += '      <source src="' + escapeHtml(v.media_url) + '"' + (v.mime_type ? ' type="' + escapeHtml(v.mime_type) + '"' : '') + '>';
+                shtml += '      Your browser does not support the video tag.';
+                shtml += '    </video>';
+                if (v.file_name) {
+                    shtml += '    <div class="featured-video-label">' + escapeHtml(v.file_name) + '</div>';
+                }
+                shtml += '  </div>';
+            });
+            shtml += '</div>';
+        }
+
+        // ---- Featured Images ----
+        if (images.length > 0) {
+            shtml += '<div class="article-media-section image-section">';
+            shtml += '  <h3>Featured Images</h3>';
+            shtml += '  <div class="article-image-list">';
+            images.forEach(function (img) {
+                shtml += '    <div class="featured-image-card" onclick="openMediaLightbox(\'' + escapeForJs(img.media_url) + '\', \'' + escapeForJs(img.file_name || '') + '\')">';
+                shtml += '      <img src="' + escapeHtml(img.media_url) + '" alt="' + escapeHtml(img.file_name || 'Article image') + '" loading="lazy">';
+                shtml += '      <div class="image-card-overlay"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14L21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg></div>';
+                shtml += '    </div>';
+            });
+            shtml += '  </div>';
+            shtml += '</div>';
+        }
+
+        // ---- Useful Links ----
+        if (urls.length > 0) {
+            shtml += '<div class="article-media-section links-section">';
+            shtml += '  <h3>Useful Links</h3>';
+            urls.forEach(function (u) {
+                var displayUrl = u.media_url || '';
+                var shortLabel = displayUrl;
+                try {
+                    var parsed = new URL(displayUrl);
+                    shortLabel = parsed.hostname + (parsed.pathname !== '/' ? parsed.pathname : '');
+                    if (shortLabel.length > 45) shortLabel = shortLabel.substring(0, 42) + '...';
+                } catch (e) { /* keep raw */ }
+
+                shtml += '  <a href="' + escapeHtml(u.media_url) + '" target="_blank" rel="noopener noreferrer" class="featured-link-card">';
+                shtml += '    <span class="featured-link-text">' + escapeHtml(shortLabel) + '</span>';
+                shtml += '    <svg class="featured-link-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
+                shtml += '  </a>';
+            });
+            shtml += '</div>';
+        }
+
+        sidebar.innerHTML = shtml;
+
+    } catch (err) {
+        console.warn('[ArticleMedia] Failed to load media sidebar:', err);
+        if (sidebar) {
+            sidebar.style.display = 'block';
+            var layout = document.querySelector('.article-layout');
+            if (layout) layout.classList.remove('no-sidebar');
+            sidebar.innerHTML = '<div class="article-media-section"><h3>Attached Media</h3><p style="color:var(--text-muted); font-size:0.9rem;">No media available for this article yet.</p></div>';
+        }
+    }
+}
+
+// ---- LIGHTBOX ----
+
+function openMediaLightbox(src, caption) {
+    // Remove existing lightbox if any
+    var existing = document.getElementById('mediaLightbox');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'mediaLightbox';
+    overlay.className = 'media-lightbox-overlay';
+    overlay.innerHTML =
+        '<div class="media-lightbox-content">' +
+        '  <button class="media-lightbox-close" aria-label="Close lightbox">&times;</button>' +
+        '  <img src="' + src + '" alt="' + (caption || 'Image') + '">' +
+        (caption ? '  <div class="media-lightbox-caption">' + escapeHtml(caption) + '</div>' : '') +
+        '</div>';
+
+    document.body.appendChild(overlay);
+
+    // Trigger reflow for animation
+    requestAnimationFrame(function () {
+        overlay.classList.add('active');
+    });
+
+    // Close handlers
+    overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) closeMediaLightbox();
+    });
+    overlay.querySelector('.media-lightbox-close').addEventListener('click', closeMediaLightbox);
+
+    document.addEventListener('keydown', lightboxEscHandler);
+}
+
+function closeMediaLightbox() {
+    var overlay = document.getElementById('mediaLightbox');
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    setTimeout(function () { overlay.remove(); }, 250);
+    document.removeEventListener('keydown', lightboxEscHandler);
+}
+
+function lightboxEscHandler(e) {
+    if (e.key === 'Escape') closeMediaLightbox();
 }

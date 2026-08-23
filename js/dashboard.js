@@ -545,18 +545,28 @@ function escapeHtml(text) {
 // ==========================================
 
 let currentMediaTab = 'file';
+let currentUploadArticleId = null;
 
 async function openMediaModal(articleId) {
-    document.getElementById('mediaModalArticleId').value = articleId;
+    // 1. Clear any previous selected article ID.
+    currentUploadArticleId = null;
+    document.getElementById('mediaModalArticleId').value = '';
+
+    // 2. Set the hidden input and state to the NEW article ID.
+    currentUploadArticleId = parseInt(articleId, 10);
+    document.getElementById('mediaModalArticleId').value = currentUploadArticleId;
+    
     document.getElementById('mediaModalOverlay').classList.add('active');
     document.getElementById('mediaFileInput').value = '';
     document.getElementById('mediaUrlInput').value = '';
 
     // Load existing media
-    renderAttachedMedia(articleId);
+    renderAttachedMedia(currentUploadArticleId);
 }
 
 function closeMediaModal() {
+    currentUploadArticleId = null;
+    document.getElementById('mediaModalArticleId').value = '';
     document.getElementById('mediaModalOverlay').classList.remove('active');
 }
 
@@ -590,11 +600,19 @@ function switchMediaTab(tabName) {
 }
 
 async function uploadMedia() {
-    const articleId = document.getElementById('mediaModalArticleId').value;
+    // Get the article ID from the CURRENT modal state immediately before making the request.
+    const hiddenInputValue = document.getElementById('mediaModalArticleId').value;
+    const articleId = currentUploadArticleId || parseInt(hiddenInputValue, 10);
+    
+    if (!Number.isInteger(articleId) || articleId <= 0) {
+        showToast('Invalid selected article ID', 'error');
+        throw new Error('Invalid selected article ID');
+    }
+
     const btn = document.getElementById('uploadMediaBtn');
-    const originalText = btn.textContent;
+    const originalHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.textContent = 'Uploading...';
+    btn.innerHTML = '<span style="pointer-events:none;">Uploading...</span>';
 
     try {
         let payload = {};
@@ -650,16 +668,18 @@ async function uploadMedia() {
             renderAttachedMedia(articleId);
             loadAllDashboardData();
         } else {
+            console.error('Backend upload failed for article:', articleId, 'URL:', `/api/media/${articleId}`, 'Response:', res);
             showToast(res.message || 'Upload failed.', 'error');
         }
     } catch (err) {
-        console.error(err);
+        console.error('Network or frontend error uploading media for article:', articleId, 'URL:', `/api/media/${articleId}`, 'Error:', err);
         showToast('Error during upload.', 'error');
     } finally {
         btn.disabled = false;
-        btn.textContent = originalText;
+        btn.innerHTML = originalHTML;
     }
 }
+
 
 async function renderAttachedMedia(articleId) {
     const listDiv = document.getElementById('attachedMediaList');
