@@ -165,6 +165,18 @@ function initSchema() {
         CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
         CREATE INDEX IF NOT EXISTS idx_article_media_article ON article_media(article_id);
     `);
+
+    // Auto-seed if database has no categories or users
+    try {
+        const catCount = db.prepare('SELECT COUNT(*) as count FROM categories').get();
+        if (!catCount || catCount.count === 0) {
+            console.log('📦 Empty database detected. Auto-populating initial GitGuide data...');
+            const seedDatabase = require('../scripts/seed');
+            seedDatabase();
+        }
+    } catch (e) {
+        console.warn('Auto-seed check notice:', e.message);
+    }
 }
 
 // Execute schema creation on startup
