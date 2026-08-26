@@ -3640,6 +3640,113 @@ p {
     }
 }
 
+/* ---------- Article Steps Editor (Admin Modal) ---------- */
+
+
+#articleModal.modal-wide {
+    max-width: 800px;
+}
+
+.step-card {
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    position: relative;
+    transition: border-color 0.2s ease;
+}
+
+.step-card:hover {
+    border-color: var(--primary);
+}
+
+.step-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.step-card-header .step-number-badge {
+    background: var(--primary);
+    color: var(--background);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.step-card-header .remove-step-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.step-card-header .remove-step-btn:hover {
+    background: rgba(255, 50, 50, 0.15);
+    border-color: #ff3232;
+    color: #ff3232;
+}
+
+.step-card .step-field {
+    margin-bottom: 0.85rem;
+}
+
+.step-card .step-field:last-child {
+    margin-bottom: 0;
+}
+
+.step-card .step-field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.step-card .step-field input,
+.step-card .step-field textarea {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+    transition: border-color 0.15s ease;
+    box-sizing: border-box;
+}
+
+.step-card .step-field input:focus,
+.step-card .step-field textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.step-card .step-field textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.step-card .step-field textarea.step-command {
+    min-height: 50px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+}
+
+/* ============================================================
+   Groq AI Troubleshooting Analyzer Styles
+   ============================================================ */
+
 /* ==========================================
    IMAGE LIGHTBOX
    ========================================== */

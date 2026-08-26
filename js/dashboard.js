@@ -380,10 +380,22 @@ function openAddModal() {
     document.getElementById('modalArticleDifficulty').value = 'Beginner';
     var statusEl = document.getElementById('modalArticleStatus');
     if (statusEl) statusEl.value = 'Published';
+
+    // Show steps editor with one empty section
+    var stepsEditor = document.getElementById('articleStepsEditor');
+    if (stepsEditor) stepsEditor.style.display = 'block';
+    var stepsContainer = document.getElementById('stepsContainer');
+    if (stepsContainer) stepsContainer.innerHTML = '';
+    addStepCard(); // Start with one empty section
+
+    var modal = document.getElementById('articleModal');
+    if (modal) modal.classList.add('modal-wide');
+
     document.getElementById('modalOverlay').classList.add('active');
 }
 
-function openEditModal(articleId) {
+async function openEditModal(articleId) {
+    // Set basic fields from local cache first
     var article = dashboardArticles.find(function (a) { return a.id === articleId; });
     if (!article) return;
 
@@ -395,11 +407,142 @@ function openEditModal(articleId) {
     document.getElementById('modalArticleDesc').value = article.description || '';
     var statusEl = document.getElementById('modalArticleStatus');
     if (statusEl) statusEl.value = article.status || 'Published';
+
+    // Widen modal for steps editor
+    var modal = document.getElementById('articleModal');
+    if (modal) modal.classList.add('modal-wide');
+
+    // Show steps editor
+    var stepsEditor = document.getElementById('articleStepsEditor');
+    if (stepsEditor) stepsEditor.style.display = 'block';
+    var stepsContainer = document.getElementById('stepsContainer');
+    if (stepsContainer) stepsContainer.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">Loading article sections...</p>';
+
     document.getElementById('modalOverlay').classList.add('active');
+
+    // Fetch full article data (with steps) from the API
+    var steps = [];
+    if (typeof API !== 'undefined' && API.articles && API.getToken()) {
+        try {
+            var res = await API.articles.getById(articleId);
+            if (res.success && res.data && Array.isArray(res.data.steps)) {
+                steps = res.data.steps;
+            }
+        } catch (e) {
+            console.warn('Could not fetch article steps:', e);
+        }
+    }
+
+    // Render step cards
+    if (stepsContainer) {
+        stepsContainer.innerHTML = '';
+        if (steps.length === 0) {
+            // No steps yet — show one empty card
+            addStepCard();
+        } else {
+            steps.forEach(function (step, idx) {
+                renderStepCard(stepsContainer, idx + 1, step.title || '', step.content || '', step.command || '');
+            });
+        }
+    }
 }
 
 function closeModal() {
     document.getElementById('modalOverlay').classList.remove('active');
+    // Clean up steps editor
+    var stepsEditor = document.getElementById('articleStepsEditor');
+    if (stepsEditor) stepsEditor.style.display = 'none';
+    var stepsContainer = document.getElementById('stepsContainer');
+    if (stepsContainer) stepsContainer.innerHTML = '';
+    var modal = document.getElementById('articleModal');
+    if (modal) modal.classList.remove('modal-wide');
+}
+
+// ---- SAVE ARTICLE (Add or Edit) ----
+
+// ---- STEP CARD HELPERS ----
+
+function renderStepCard(container, stepNum, title, content, command) {
+    var card = document.createElement('div');
+    card.className = 'step-card';
+    card.setAttribute('data-step-index', stepNum);
+
+    card.innerHTML = '<div class="step-card-header">' +
+        '<span class="step-number-badge">Section ' + stepNum + '</span>' +
+        '<button type="button" class="remove-step-btn" onclick="removeStepCard(this)" title="Remove this section">✕ Remove</button>' +
+        '</div>' +
+        '<div class="step-field">' +
+        '<label>Section Title</label>' +
+        '<input type="text" class="step-title-input" value="' + escapeAttr(title) + '" placeholder="e.g. What is Git?">' +
+        '</div>' +
+        '<div class="step-field">' +
+        '<label>Section Content</label>' +
+        '<textarea class="step-content-input" placeholder="Content for this section...">' + escapeHtml(content) + '</textarea>' +
+        '</div>' +
+        '<div class="step-field">' +
+        '<label>Command / Code Block</label>' +
+        '<textarea class="step-command step-command-input" placeholder="Leave empty if no command for this section">' + escapeHtml(command) + '</textarea>' +
+        '</div>';
+
+    container.appendChild(card);
+}
+
+function addStepCard() {
+    var container = document.getElementById('stepsContainer');
+    if (!container) return;
+    var currentCards = container.querySelectorAll('.step-card');
+    var nextNum = currentCards.length + 1;
+    renderStepCard(container, nextNum, '', '', '');
+    // Scroll the new card into view within the modal
+    var lastCard = container.lastElementChild;
+    if (lastCard) lastCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function removeStepCard(btn) {
+    var card = btn.closest('.step-card');
+    if (!card) return;
+    var container = document.getElementById('stepsContainer');
+    var cards = container.querySelectorAll('.step-card');
+    if (cards.length <= 1) {
+        showToast('An article must have at least one section.', 'error');
+        return;
+    }
+    card.remove();
+    renumberStepCards();
+}
+
+function renumberStepCards() {
+    var container = document.getElementById('stepsContainer');
+    if (!container) return;
+    var cards = container.querySelectorAll('.step-card');
+    cards.forEach(function (card, idx) {
+        card.setAttribute('data-step-index', idx + 1);
+        var badge = card.querySelector('.step-number-badge');
+        if (badge) badge.textContent = 'Section ' + (idx + 1);
+    });
+}
+
+function collectStepsFromForm() {
+    var container = document.getElementById('stepsContainer');
+    if (!container) return [];
+    var cards = container.querySelectorAll('.step-card');
+    var steps = [];
+    cards.forEach(function (card, idx) {
+        var title = card.querySelector('.step-title-input');
+        var content = card.querySelector('.step-content-input');
+        var command = card.querySelector('.step-command-input');
+        steps.push({
+            title: title ? title.value.trim() : '',
+            content: content ? content.value.trim() : '',
+            command: command ? command.value.trim() : ''
+        });
+    });
+    return steps;
+}
+
+function escapeAttr(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ---- SAVE ARTICLE (Add or Edit) ----
@@ -428,6 +571,9 @@ async function saveArticle() {
         return;
     }
 
+    // Collect steps from the form
+    var steps = collectStepsFromForm();
+
     if (idInput) {
         // Edit existing
         var articleId = parseInt(idInput);
@@ -438,10 +584,13 @@ async function saveArticle() {
                 categoryName: category,
                 difficulty: difficulty,
                 description: description,
-                status: status
+                status: status,
+                steps: steps
             });
             if (res.success) {
                 showToast('Article updated on server!', 'success');
+            } else {
+                showToast(res.message || 'Failed to update article.', 'error');
             }
         }
 
@@ -465,13 +614,13 @@ async function saveArticle() {
                 description: description,
                 status: status,
                 readingTime: '5 min',
-                steps: [
-                    { title: 'Introduction', content: description, command: 'git status' }
-                ]
+                steps: steps
             });
             if (createRes.success && createRes.id) {
                 newArticleId = createRes.id;
                 showToast('New article created on server!', 'success');
+            } else {
+                showToast(createRes.message || 'Failed to create article.', 'error');
             }
         }
 
@@ -740,6 +889,8 @@ window.closeModal = closeModal;
 window.saveArticle = saveArticle;
 window.deleteArticle = deleteArticle;
 window.deleteComment = deleteComment;
+window.addStepCard = addStepCard;
+window.removeStepCard = removeStepCard;
 
 // Media Window functions
 window.openMediaModal = openMediaModal;

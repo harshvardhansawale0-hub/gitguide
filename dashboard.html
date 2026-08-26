@@ -172,7 +172,7 @@
 
     <!-- ========== MODAL (Edit / Add Article) ========== -->
     <div class="modal-overlay" id="modalOverlay">
-        <div class="modal">
+        <div class="modal" id="articleModal">
             <h2 id="modalTitle">Edit Article</h2>
 
             <div class="form-group" style="margin-bottom:1.25rem;">
@@ -207,6 +207,18 @@
             <div class="form-group" style="margin-bottom:1.25rem;">
                 <label for="modalArticleDesc" style="display:block; margin-bottom:0.5rem; font-weight:600;">Description</label>
                 <textarea class="form-textarea" id="modalArticleDesc" placeholder="Short description of the article" style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text); min-height:100px;"></textarea>
+            </div>
+
+            <!-- Article Content Sections Editor -->
+            <div id="articleStepsEditor" style="display:none;">
+                <hr style="border:0; border-top:1px solid var(--border); margin:1.5rem 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <h3 style="margin:0; font-size:1.1rem; color:var(--text);">📝 Article Content Sections</h3>
+                    <button type="button" class="btn btn-primary btn-sm" id="addStepBtn" onclick="addStepCard()" style="padding:0.4rem 0.85rem; font-size:0.85rem;">+ Add Section</button>
+                </div>
+                <div id="stepsContainer">
+                    <!-- Dynamically rendered step cards -->
+                </div>
             </div>
 
             <input type="hidden" id="modalArticleId">
