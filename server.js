@@ -11,6 +11,7 @@ dotenv.config();
 
 // Initialize database schema
 require('./config/db');
+const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,7 +31,7 @@ app.use((req, res, next) => {
 
 // Serve frontend static assets (HTML, CSS, JS, Images)
 app.use(express.static(path.join(__dirname)));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', authenticateToken, express.static(path.join(__dirname, 'uploads')));
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));

@@ -33,7 +33,7 @@ router.get('/article/:articleId', (req, res) => {
 });
 
 // POST /api/comments/article/:articleId – Post a comment
-router.post('/article/:articleId', optionalAuth, (req, res) => {
+router.post('/article/:articleId', authenticateToken, (req, res) => {
     try {
         const articleId = parseInt(req.params.articleId);
         const { text, name } = req.body;

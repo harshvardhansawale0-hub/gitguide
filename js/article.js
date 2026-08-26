@@ -7,6 +7,14 @@
 // ============================================================
 
 var currentArticleData = null;
+var activeMediaBlobs = [];
+
+function cleanupMediaBlobs() {
+    if (activeMediaBlobs.length > 0) {
+        activeMediaBlobs.forEach(function(url) { URL.revokeObjectURL(url); });
+        activeMediaBlobs = [];
+    }
+}
 
 // ---- INITIALIZE ARTICLE PAGE ----
 
@@ -177,13 +185,20 @@ function renderArticle(article) {
     
     // Bookmark
     var bookmarked = article.isBookmarked !== undefined ? article.isBookmarked : isBookmarked(article.id);
+    var user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!user && typeof API !== 'undefined' && API.getCurrentUser) user = API.getCurrentUser();
+
     html += '  <div class="tool-box" style="flex:1; min-width: 200px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">';
     html += '    <div style="font-size:0.9rem; color:var(--text-muted); margin-bottom: 1rem; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;">Save for later</div>';
-    html += '    <button class="btn ' + (bookmarked ? 'btn-primary' : 'btn-secondary') + '" id="bookmarkBtn" style="width: 100%; max-width: 250px; justify-content: center;">';
-    html += bookmarked 
-        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.5rem;"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> Bookmarked' 
-        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.5rem;"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> Bookmark Guide';
-    html += '    </button>';
+    if (!user) {
+        html += '    <a href="login.html" class="btn btn-secondary" style="width: 100%; max-width: 250px; justify-content: center; text-decoration:none;">Login to Bookmark</a>';
+    } else {
+        html += '    <button class="btn ' + (bookmarked ? 'btn-primary' : 'btn-secondary') + '" id="bookmarkBtn" style="width: 100%; max-width: 250px; justify-content: center;">';
+        html += bookmarked 
+            ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.5rem;"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> Bookmarked' 
+            : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.5rem;"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> Bookmark Guide';
+        html += '    </button>';
+    }
     html += '  </div>';
 
     // Rating
@@ -193,14 +208,16 @@ function renderArticle(article) {
 
     html += '  <div class="tool-box" style="flex:1; min-width: 200px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); padding: 0 2rem; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">';
     html += '    <div style="font-size:0.9rem; color:var(--text-muted); margin-bottom: 1rem; text-transform:uppercase; letter-spacing:0.05em; font-weight:700;">Rate this guide</div>';
-    html += '    <div class="star-rating" id="starRating" style="display:flex; justify-content:center; gap:0.25rem; font-size:1.75rem; margin-bottom: 0.5rem;">';
+    html += '    <div class="star-rating" id="starRating" style="display:flex; justify-content:center; gap:0.25rem; font-size:1.75rem; margin-bottom: 0.5rem;' + (!user ? ' opacity:0.5; pointer-events:none;' : '') + '">';
     for (var i = 1; i <= 5; i++) {
         var filled = i <= currentRating ? 'filled' : '';
         html += '      <button class="star ' + filled + '" data-rating="' + i + '" style="background:none; border:none; cursor:pointer; color: ' + (i <= currentRating ? '#FFBD2E' : 'var(--border)') + '; transition:color 0.2s;">★</button>';
     }
     html += '    </div>';
     html += '    <div class="rating-text" id="ratingText" style="font-size:0.85rem; color:var(--text-muted);">';
-    if (currentRating > 0) {
+    if (!user) {
+        html += '<a href="login.html" style="color:var(--primary); font-weight:600; text-decoration:none;">Login to rate</a>';
+    } else if (currentRating > 0) {
         html += 'Your rating: ' + currentRating + '/5 (Avg: ' + avgRating + ' ★)';
     } else if (totalRatings > 0) {
         html += 'Community: ' + avgRating + '/5 ★ (' + totalRatings + ' votes)';
@@ -248,17 +265,24 @@ function renderArticle(article) {
     html += '<div class="comments-section" style="padding-top: 4rem; border-top: 1px solid var(--border); margin-bottom: 6rem;">';
     html += '  <h2 style="margin-bottom:2rem; font-size: 2rem;">Comments</h2>';
 
-    html += '  <div class="comment-form" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; margin-bottom:3rem;">';
-    html += '    <div class="form-group" style="margin-bottom:1.5rem;">';
-    html += '      <label for="commentName" style="display:block; margin-bottom:0.5rem; font-weight:600;">Your Name</label>';
-    html += '      <input type="text" class="form-input" id="commentName" placeholder="Enter your name" style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text);">';
-    html += '    </div>';
-    html += '    <div class="form-group" style="margin-bottom:1.5rem;">';
-    html += '      <label for="commentText" style="display:block; margin-bottom:0.5rem; font-weight:600;">Your Comment</label>';
-    html += '      <textarea class="form-textarea" id="commentText" placeholder="Share your thoughts or questions..." style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text); min-height:120px;"></textarea>';
-    html += '    </div>';
-    html += '    <button class="btn btn-primary" id="submitComment">Submit Comment</button>';
-    html += '  </div>';
+    if (user) {
+        html += '  <div class="comment-form" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; margin-bottom:3rem;">';
+        html += '    <div class="form-group" style="margin-bottom:1.5rem;">';
+        html += '      <label for="commentName" style="display:block; margin-bottom:0.5rem; font-weight:600;">Your Name</label>';
+        html += '      <input type="text" class="form-input" id="commentName" placeholder="Enter your name" style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text);">';
+        html += '    </div>';
+        html += '    <div class="form-group" style="margin-bottom:1.5rem;">';
+        html += '      <label for="commentText" style="display:block; margin-bottom:0.5rem; font-weight:600;">Your Comment</label>';
+        html += '      <textarea class="form-textarea" id="commentText" placeholder="Share your thoughts or questions..." style="width:100%; padding:0.75rem; background:var(--background); border:1px solid var(--border); border-radius:4px; color:var(--text); min-height:120px;"></textarea>';
+        html += '    </div>';
+        html += '    <button class="btn btn-primary" id="submitComment">Submit Comment</button>';
+        html += '  </div>';
+    } else {
+        html += '  <div class="comment-form" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; margin-bottom:3rem; text-align:center;">';
+        html += '    <p style="color:var(--text-muted); margin-bottom:1rem;">Please login to leave a comment.</p>';
+        html += '    <a href="login.html" class="btn btn-primary" style="display:inline-block;">Login</a>';
+        html += '  </div>';
+    }
 
     html += '  <div class="comment-list" id="commentList"></div>';
     html += '</div>';
@@ -491,6 +515,21 @@ async function loadAndRenderArticleMedia(articleId) {
     var sidebar = document.getElementById('articleMediaSidebar');
     if (!sidebar) return;
 
+    cleanupMediaBlobs();
+
+    var user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (typeof API !== 'undefined' && API.getCurrentUser) {
+        user = API.getCurrentUser();
+    }
+
+    if (!user) {
+        sidebar.style.display = 'block';
+        var layout = document.querySelector('.article-layout');
+        if (layout) layout.classList.remove('no-sidebar');
+        sidebar.innerHTML = '<div class="article-media-section"><h3>Attached Media</h3><div style="background:var(--surface); border:1px solid var(--border); padding:1.5rem; border-radius:var(--radius); text-align:center;"><p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1rem;">Please login to view attached media.</p><a href="login.html" class="btn btn-primary" style="display:inline-flex;">Login</a></div></div>';
+        return;
+    }
+
     try {
         var res = null;
         if (typeof API !== 'undefined' && API.media) {
@@ -517,6 +556,29 @@ async function loadAndRenderArticleMedia(articleId) {
             sidebar.innerHTML = '<div class="article-media-section"><h3>Attached Media</h3><p style="color:var(--text-muted); font-size:0.9rem;">No media available for this article yet.</p></div>';
             return;
         }
+
+        // Fetch Protected Blobs for videos and images
+        if (typeof API !== 'undefined' && API.media && API.media.fetchProtectedUrl) {
+            for (var i = 0; i < videos.length; i++) {
+                if (videos[i].media_url.startsWith('/uploads/')) {
+                    var blobUrl = await API.media.fetchProtectedUrl(API.baseURL.replace('/api', '') + videos[i].media_url);
+                    if (blobUrl) {
+                        videos[i].media_url = blobUrl;
+                        activeMediaBlobs.push(blobUrl);
+                    }
+                }
+            }
+            for (var i = 0; i < images.length; i++) {
+                if (images[i].media_url.startsWith('/uploads/')) {
+                    var blobUrl = await API.media.fetchProtectedUrl(API.baseURL.replace('/api', '') + images[i].media_url);
+                    if (blobUrl) {
+                        images[i].media_url = blobUrl;
+                        activeMediaBlobs.push(blobUrl);
+                    }
+                }
+            }
+        }
+
         var shtml = '';
 
         // ---- Featured Videos ----

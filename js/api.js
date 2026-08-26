@@ -206,6 +206,22 @@
             },
             delete: async function (mediaId) {
                 return await request('/media/' + mediaId, { method: 'DELETE' });
+            },
+            fetchProtectedUrl: async function(url) {
+                try {
+                    var headers = {};
+                    var token = getToken();
+                    if (token) {
+                        headers['Authorization'] = 'Bearer ' + token;
+                    }
+                    var response = await fetch(url, { headers: headers });
+                    if (!response.ok) return null;
+                    var blob = await response.blob();
+                    return URL.createObjectURL(blob);
+                } catch (e) {
+                    console.warn('[API Client] Error fetching protected media:', e);
+                    return null;
+                }
             }
         },
 

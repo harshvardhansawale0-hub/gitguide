@@ -4,6 +4,7 @@
 const express = require('express');
 const Groq = require('groq-sdk');
 const db = require('../config/db');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -107,7 +108,7 @@ router.get('/patterns', (req, res) => {
 });
 
 // POST /api/troubleshooting/analyze – Terminal error log analyzer (Groq AI powered)
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', authenticateToken, async (req, res) => {
     try {
         const { errorText } = req.body;
 

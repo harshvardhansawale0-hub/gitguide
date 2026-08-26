@@ -29,9 +29,9 @@ function enforceAdmin(req, res, next) {
 // ============================================================
 // GET /api/media/:articleId
 // Get all media belonging to one article
-// Public
+// Protected
 // ============================================================
-router.get('/:articleId', (req, res) => {
+router.get('/:articleId', authenticateToken, (req, res) => {
     try {
         const articleId = parseInt(req.params.articleId, 10);
 

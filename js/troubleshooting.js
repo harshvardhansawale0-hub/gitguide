@@ -7,9 +7,35 @@
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function () {
+    var user = null;
+    if (typeof API !== 'undefined' && API.getCurrentUser) {
+        user = API.getCurrentUser();
+    } else if (typeof getCurrentUser === 'function') {
+        user = getCurrentUser();
+    }
+
     var analyzeBtn = document.getElementById('analyzeBtn');
     var errorInput = document.getElementById('errorInput');
     var clearInputBtn = document.getElementById('clearInputBtn');
+
+    if (!user) {
+        if (errorInput) {
+            errorInput.disabled = true;
+            errorInput.placeholder = "Please login to use the Error Log Analyzer.";
+            errorInput.style.opacity = "0.5";
+        }
+        if (analyzeBtn) {
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = "Login to Analyze";
+            analyzeBtn.style.opacity = "1";
+            analyzeBtn.onclick = function() { window.location.href = 'login.html'; };
+        }
+        var resultsArea = document.getElementById('resultsArea');
+        if (resultsArea) {
+            resultsArea.innerHTML = '<div style="background:var(--surface); border:1px solid var(--border); padding:2.5rem; border-radius:var(--radius-lg); text-align:center;"><div style="font-size:2.5rem; margin-bottom:1rem;">🔒</div><h3 style="color:var(--text); margin-bottom:1rem;">Authentication Required</h3><p style="color:var(--text-muted); margin-bottom:1.5rem;">You must be logged in to use the Groq AI Diagnostic Engine.</p><a href="login.html" class="btn btn-primary" style="display:inline-flex; padding:0.75rem 1.5rem;">Login to Continue</a></div>';
+        }
+        return; // Skip attaching active event listeners
+    }
 
     if (analyzeBtn) {
         analyzeBtn.addEventListener('click', analyzeError);

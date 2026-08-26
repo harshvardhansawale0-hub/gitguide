@@ -47,6 +47,17 @@
 
     // ---------- Bootstrapping ----------
     function init() {
+        var user = null;
+        if (typeof API !== 'undefined' && API.getCurrentUser) {
+            user = API.getCurrentUser();
+        } else if (typeof getCurrentUser === 'function') {
+            user = getCurrentUser();
+        }
+
+        if (!user) {
+            return; // Do not initialize chatbot for guests
+        }
+
         injectMarkup();
         cacheEls();
         bindEvents();
