@@ -137,6 +137,23 @@
             },
             getProfile: async function () {
                 return await request('/auth/me');
+            },
+            updateProfile: async function (name, contact, username) {
+                var res = await request('/auth/profile', {
+                    method: 'PUT',
+                    body: { name: name, contact: contact, username: username }
+                });
+                if (res.success && res.token && res.user) {
+                    setToken(res.token);
+                    setCurrentUser(res.user);
+                }
+                return res;
+            },
+            updatePassword: async function (currentPassword, newPassword, confirmPassword) {
+                return await request('/auth/password', {
+                    method: 'PUT',
+                    body: { currentPassword: currentPassword, newPassword: newPassword, confirmPassword: confirmPassword }
+                });
             }
         },
 
@@ -181,6 +198,15 @@
             getById: async function (id) {
                 return await request('/articles/' + id);
             },
+            recordView: async function (id) {
+                return await request('/articles/' + id + '/view', { method: 'POST' });
+            },
+            saveProgress: async function (id, percent) {
+                return await request('/articles/' + id + '/progress', {
+                    method: 'POST',
+                    body: { percent: percent }
+                });
+            },
             create: async function (data) {
                 return await request('/articles', { method: 'POST', body: data });
             },
@@ -207,7 +233,7 @@
             delete: async function (mediaId) {
                 return await request('/media/' + mediaId, { method: 'DELETE' });
             },
-            fetchProtectedUrl: async function(url) {
+            fetchProtectedUrl: async function (url) {
                 try {
                     var headers = {};
                     var token = getToken();

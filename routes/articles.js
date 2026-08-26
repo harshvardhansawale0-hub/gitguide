@@ -414,4 +414,70 @@ router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
     }
 });
 
+// POST /api/articles/:id/view – Record article as recently viewed
+router.post('/:id/view', authenticateToken, (req, res) => {
+    try {
+        const articleId = parseInt(req.params.id);
+        
+        const article = db.prepare('SELECT title FROM articles WHERE id = ?').get(articleId);
+        if (!article) {
+            return res.status(404).json({ success: false, message: 'Article not found.' });
+        }
+
+        db.prepare(`
+            INSERT INTO recently_viewed_articles (user_id, article_id)
+            VALUES (?, ?)
+            ON CONFLICT(user_id, article_id) DO UPDATE SET viewed_at = CURRENT_TIMESTAMP
+        `).run(req.user.id, articleId);
+
+        // Also log this in audit_logs to show up in My Activity
+        // We can do an upsert-like logic, or just a simple insert, but to avoid spamming the activity feed,
+        // we might only log if it's the first time today, but a simple insert is fine for now, 
+        // or check if they viewed it in the last hour to prevent spam.
+        const recentViewLog = db.prepare(`
+            SELECT id FROM audit_logs 
+            WHERE user_id = ? AND icon = '📖' AND message LIKE ? AND created_at >= datetime('now', '-1 hour')
+        `).get(req.user.id, `Viewed "${article.title}"%`);
+
+        if (!recentViewLog) {
+            db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
+                .run(req.user.id, '📖', `Viewed "${article.title}"`);
+        }
+
+        return res.json({ success: true, message: 'View recorded.' });
+    } catch (err) {
+        console.error('Error recording article view:', err);
+        return res.status(500).json({ success: false, message: 'Server error recording view.' });
+    }
+});
+
+// POST /api/articles/:id/progress – Record reading progress
+router.post('/:id/progress', authenticateToken, (req, res) => {
+    try {
+        const articleId = parseInt(req.params.id);
+        let { percent } = req.body;
+        
+        percent = parseInt(percent);
+        if (isNaN(percent) || percent < 0 || percent > 100) {
+            return res.status(400).json({ success: false, message: 'Invalid progress percent.' });
+        }
+
+        const article = db.prepare('SELECT id FROM articles WHERE id = ?').get(articleId);
+        if (!article) {
+            return res.status(404).json({ success: false, message: 'Article not found.' });
+        }
+
+        db.prepare(`
+            INSERT INTO article_reading_progress (user_id, article_id, progress_percent)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, article_id) DO UPDATE SET progress_percent = excluded.progress_percent, updated_at = CURRENT_TIMESTAMP
+        `).run(req.user.id, articleId, percent);
+
+        return res.json({ success: true, message: 'Progress saved.' });
+    } catch (err) {
+        console.error('Error recording reading progress:', err);
+        return res.status(500).json({ success: false, message: 'Server error recording progress.' });
+    }
+});
+
 module.exports = router;

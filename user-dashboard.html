@@ -57,9 +57,109 @@
     <section class="section" style="padding-top: 0; min-height: 400px;">
         <div class="container">
             <div class="dashboard-layout" style="display: block;">
-                <!-- BOOKMARKS SECTION -->
+                <!-- 1. DASHBOARD STATISTICS -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.5rem; margin:0;">Dashboard Statistics</h3>
+                </div>
+                <div id="statsGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1.5rem; margin-bottom: 4rem;">
+                    <!-- Rendered by user-dashboard.js -->
+                </div>
+
+                <!-- 2. MY ACTIVITY -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.5rem; margin:0;">My Activity</h3>
+                </div>
+                <div id="activityTimeline" style="margin-bottom: 4rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; max-height:400px; overflow-y:auto;">
+                    <!-- Rendered by user-dashboard.js -->
+                </div>
+
+                <!-- 3. RECENTLY VIEWED ARTICLES -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.5rem; margin:0;">Recently Viewed</h3>
+                </div>
+                <div id="recentlyViewedGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:1.5rem; margin-bottom: 4rem;">
+                    <!-- Rendered by user-dashboard.js -->
+                </div>
+
+                <!-- 4. READING PROGRESS -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.5rem; margin:0;">Reading Progress</h3>
+                </div>
+                <div id="readingProgressList" style="margin-bottom: 4rem; display:flex; flex-direction:column; gap:1rem;">
+                    <!-- Rendered by user-dashboard.js -->
+                </div>
+
+                <!-- 5. ACCOUNT ACTIVITY / SECURITY -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.5rem; margin:0;">Account Security</h3>
+                </div>
+                <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; margin-bottom:4rem;">
+                    <div id="accountSecurityInfo" style="display:flex; flex-direction:column; gap:1rem; color:var(--text-light);">
+                        <!-- Rendered by user-dashboard.js -->
+                    </div>
+                </div>
+
+                <!-- ACCOUNT SETTINGS SECTION (Existing) -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.5rem; margin:0;">Account Settings</h3>
+                </div>
+                
+                <div style="display:flex; flex-wrap:wrap; gap:2rem; margin-bottom: 4rem;">
+                    <!-- Profile Form -->
+                    <div style="flex:1; min-width:300px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem;">
+                        <h4 style="margin-bottom:1.5rem; font-size:1.2rem;">Profile Information</h4>
+                        <form id="profileForm">
+                            <div class="form-group" style="margin-bottom:1.5rem;">
+                                <label for="profileName" style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-light);">Name</label>
+                                <input type="text" id="profileName" class="form-input" style="width:100%; padding:0.85rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);" required>
+                            </div>
+                            <div class="form-group" style="margin-bottom:1.5rem;">
+                                <label for="profileUsername" style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-light);">Username</label>
+                                <input type="text" id="profileUsername" class="form-input" style="width:100%; padding:0.85rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);" required>
+                            </div>
+                            <div class="form-group" style="margin-bottom:2rem;">
+                                <label for="profileContact" style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-light);">Contact (Optional)</label>
+                                <input type="text" id="profileContact" class="form-input" style="width:100%; padding:0.85rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);">
+                            </div>
+                            <button type="submit" id="btnUpdateProfile" class="btn btn-primary" style="width: 100%; justify-content:center; padding:0.85rem;">Save Changes</button>
+                        </form>
+                    </div>
+
+                    <!-- Password Form -->
+                    <div style="flex:1; min-width:300px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem;">
+                        <h4 style="margin-bottom:1.5rem; font-size:1.2rem;">Change Password</h4>
+                        <form id="passwordForm">
+                            <div class="form-group" style="margin-bottom:1.5rem;">
+                                <label for="currentPassword" style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-light);">Current Password</label>
+                                <input type="password" id="currentPassword" class="form-input" style="width:100%; padding:0.85rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);" required>
+                            </div>
+                            <div class="form-group" style="margin-bottom:1.5rem;">
+                                <label for="newPassword" style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-light);">New Password</label>
+                                <input type="password" id="newPassword" class="form-input" style="width:100%; padding:0.85rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);" required>
+                            </div>
+                            <div class="form-group" style="margin-bottom:2rem;">
+                                <label for="confirmPassword" style="display:block; margin-bottom:0.5rem; font-weight:600; color:var(--text-light);">Confirm New Password</label>
+                                <input type="password" id="confirmPassword" class="form-input" style="width:100%; padding:0.85rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);" required>
+                            </div>
+                            <button type="submit" id="btnUpdatePassword" class="btn btn-secondary" style="width: 100%; justify-content:center; padding:0.85rem; border-color:var(--border);">Update Password</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- BOOKMARKS SECTION -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem; flex-wrap:wrap; gap:1rem;">
                     <h3 style="font-size: 1.5rem; margin:0;">My Bookmarks</h3>
+                    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                        <input type="text" id="bookmarkSearch" class="form-input" placeholder="Search bookmarks..." style="padding:0.5rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);">
+                        <select id="bookmarkFilter" class="form-input" style="padding:0.5rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);">
+                            <option value="">All Categories</option>
+                        </select>
+                        <select id="bookmarkSort" class="form-input" style="padding:0.5rem; background:var(--background); border:1px solid var(--border); border-radius:var(--radius); color:var(--text);">
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="az">A-Z</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="article-grid" id="userBookmarksGrid" style="margin-bottom: 4rem; display:flex; flex-direction:column; gap:1rem;">
                     <!-- Bookmarked articles rendered by user-dashboard.js -->

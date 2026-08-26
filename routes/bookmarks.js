@@ -66,6 +66,10 @@ router.post('/toggle', authenticateToken, (req, res) => {
 
         if (existing) {
             db.prepare('DELETE FROM bookmarks WHERE id = ?').run(existing.id);
+            
+            db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
+                .run(req.user.id, '🔖', `Removed bookmark for "${article.title}"`);
+                
             return res.json({
                 success: true,
                 bookmarked: false,
@@ -73,6 +77,10 @@ router.post('/toggle', authenticateToken, (req, res) => {
             });
         } else {
             db.prepare('INSERT INTO bookmarks (article_id, user_id) VALUES (?, ?)').run(artId, req.user.id);
+            
+            db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
+                .run(req.user.id, '🔖', `Bookmarked "${article.title}"`);
+                
             return res.json({
                 success: true,
                 bookmarked: true,

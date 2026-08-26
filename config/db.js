@@ -155,6 +155,29 @@ function initSchema() {
             FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
         );
 
+        -- 13. RECENTLY VIEWED ARTICLES TABLE
+        CREATE TABLE IF NOT EXISTS recently_viewed_articles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            article_id INTEGER NOT NULL,
+            viewed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, article_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+        );
+
+        -- 14. ARTICLE READING PROGRESS TABLE
+        CREATE TABLE IF NOT EXISTS article_reading_progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            article_id INTEGER NOT NULL,
+            progress_percent INTEGER DEFAULT 0 CHECK(progress_percent >= 0 AND progress_percent <= 100),
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, article_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+        );
+
         -- INDEXES FOR FAST SEARCH & JOINS
         CREATE INDEX IF NOT EXISTS idx_articles_category ON articles(category_id);
         CREATE INDEX IF NOT EXISTS idx_articles_difficulty ON articles(difficulty);
@@ -164,7 +187,20 @@ function initSchema() {
         CREATE INDEX IF NOT EXISTS idx_ratings_article ON ratings(article_id);
         CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
         CREATE INDEX IF NOT EXISTS idx_article_media_article ON article_media(article_id);
+        CREATE INDEX IF NOT EXISTS idx_recently_viewed_user ON recently_viewed_articles(user_id);
+        CREATE INDEX IF NOT EXISTS idx_reading_progress_user ON article_reading_progress(user_id);
     `);
+
+    // Safely migrate existing databases: add last_login to users if missing
+    try {
+        const tableInfo = db.pragma('table_info(users)');
+        const hasLastLogin = tableInfo.some(col => col.name === 'last_login');
+        if (!hasLastLogin) {
+            db.exec('ALTER TABLE users ADD COLUMN last_login DATETIME');
+        }
+    } catch (e) {
+        console.warn('Migration warning:', e.message);
+    }
 
     // Auto-seed if database has no categories or users
     try {

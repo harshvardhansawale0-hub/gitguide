@@ -70,16 +70,60 @@ router.get('/user', authenticateToken, (req, res) => {
     try {
         const userId = req.user.id;
 
+        // Ensure user exists and get last login
+        const userDb = db.prepare('SELECT id, name, username, role, created_at, last_login FROM users WHERE id = ?').get(userId);
+
+        // User activity
+        const activity = db.prepare(`
+            SELECT id, icon, message, created_at AS createdAt, strftime('%b %d, %H:%M', created_at) AS formattedTime
+            FROM audit_logs
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 20
+        `).all(userId);
+
+        // Recently viewed
+        const recentlyViewed = db.prepare(`
+            SELECT 
+                r.article_id AS articleId,
+                a.title,
+                c.name AS category,
+                a.difficulty,
+                r.viewed_at AS viewedAt,
+                strftime('%b %d, %Y', r.viewed_at) AS date
+            FROM recently_viewed_articles r
+            JOIN articles a ON a.id = r.article_id
+            JOIN categories c ON c.id = a.category_id
+            WHERE r.user_id = ?
+            ORDER BY r.viewed_at DESC
+            LIMIT 10
+        `).all(userId);
+
+        // Reading progress
+        const readingProgress = db.prepare(`
+            SELECT 
+                p.article_id AS articleId,
+                a.title,
+                p.progress_percent AS progress,
+                p.updated_at AS updatedAt
+            FROM article_reading_progress p
+            JOIN articles a ON a.id = p.article_id
+            WHERE p.user_id = ?
+            ORDER BY p.updated_at DESC
+        `).all(userId);
+
         // User bookmarks
         const bookmarks = db.prepare(`
             SELECT 
-                a.id,
+                b.id AS bookmarkId,
+                a.id AS articleId,
                 a.title,
                 c.name AS category,
                 a.difficulty,
                 a.description,
                 a.reading_time AS readingTime,
-                b.created_at AS bookmarkedAt
+                b.created_at AS bookmarkedAt,
+                strftime('%b %d, %Y', b.created_at) AS date
             FROM bookmarks b
             JOIN articles a ON a.id = b.article_id
             JOIN categories c ON c.id = a.category_id
@@ -87,7 +131,7 @@ router.get('/user', authenticateToken, (req, res) => {
             ORDER BY b.created_at DESC
         `).all(userId);
 
-        // User comments
+        // User comments - strictly checked by user_id
         const comments = db.prepare(`
             SELECT 
                 c.id,
@@ -98,28 +142,34 @@ router.get('/user', authenticateToken, (req, res) => {
                 c.created_at AS createdAt
             FROM comments c
             JOIN articles a ON a.id = c.article_id
-            WHERE c.user_id = ? OR LOWER(c.name) = LOWER(?)
+            WHERE c.user_id = ?
             ORDER BY c.created_at DESC
-        `).all(userId, req.user.username);
+        `).all(userId);
 
-        // User ratings count
+        // Stats
         const ratingsCount = db.prepare('SELECT COUNT(*) AS count FROM ratings WHERE user_id = ?').get(userId).count;
+        const articlesReadCount = db.prepare('SELECT COUNT(DISTINCT article_id) AS count FROM recently_viewed_articles WHERE user_id = ?').get(userId).count;
 
         return res.json({
             success: true,
             data: {
                 user: {
-                    id: req.user.id,
-                    name: req.user.name,
-                    username: req.user.username,
-                    role: req.user.role,
-                    createdAt: req.user.created_at
+                    id: userDb.id,
+                    name: userDb.name,
+                    username: userDb.username,
+                    role: userDb.role,
+                    createdAt: userDb.created_at,
+                    lastLogin: userDb.last_login
                 },
                 stats: {
+                    articlesRead: articlesReadCount,
                     bookmarksCount: bookmarks.length,
                     commentsCount: comments.length,
                     ratingsCount
                 },
+                activity,
+                recentlyViewed,
+                readingProgress,
                 bookmarks,
                 comments
             }

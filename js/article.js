@@ -57,15 +57,35 @@ document.addEventListener('DOMContentLoaded', async function () {
     loadAndRenderArticleMedia(articleId);
 });
 
-// ---- READING PROGRESS ----
+// ---- READING PROGRESS & VIEW TRACKING ----
 function initReadingProgress() {
+    var articleId = currentArticleData ? currentArticleData.id : null;
+    if (!articleId) return;
+
+    // Record view immediately
+    if (typeof API !== 'undefined' && API.articles && API.getToken()) {
+        API.articles.recordView(articleId).catch(err => console.warn('Failed to record view:', err));
+    }
+
+    var progressTimeout = null;
+
     window.addEventListener('scroll', function () {
         var winScroll = document.body.scrollTop || document.documentElement.scrollTop;
         var height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-        var scrolled = (winScroll / height) * 100;
+        var scrolled = height > 0 ? (winScroll / height) * 100 : 0;
+        var percent = Math.min(100, Math.max(0, Math.round(scrolled)));
+        
         var progressBar = document.getElementById('readingProgressBar');
         if (progressBar) {
-            progressBar.style.width = scrolled + '%';
+            progressBar.style.width = percent + '%';
+        }
+
+        // Debounced API call to save progress
+        if (typeof API !== 'undefined' && API.articles && API.getToken()) {
+            if (progressTimeout) clearTimeout(progressTimeout);
+            progressTimeout = setTimeout(function() {
+                API.articles.saveProgress(articleId, percent).catch(err => console.warn('Failed to save progress:', err));
+            }, 1000); // 1 second debounce
         }
     });
 }

@@ -100,6 +100,11 @@ router.post('/login', (req, res) => {
 
         const token = generateToken(user);
 
+        // Record successful login
+        db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
+            .run(user.id, '🔑', 'Successful login');
+
         return res.json({
             success: true,
             message: 'Login successful!',
@@ -123,6 +128,97 @@ router.get('/me', authenticateToken, (req, res) => {
         success: true,
         user: req.user
     });
+});
+
+// PUT /api/auth/profile
+router.put('/profile', authenticateToken, (req, res) => {
+    try {
+        const { name, contact, username } = req.body;
+        
+        if (!name || !username) {
+            return res.status(400).json({ success: false, message: 'Name and username are required.' });
+        }
+
+        const cleanUsername = username.trim();
+        
+        // Check if username is taken by another user
+        const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?').get(cleanUsername, req.user.id);
+        if (existing) {
+            return res.status(409).json({ success: false, message: 'Username already exists. Please choose another.' });
+        }
+
+        db.prepare('UPDATE users SET name = ?, contact = ?, username = ? WHERE id = ?')
+            .run(name.trim(), contact ? contact.trim() : null, cleanUsername, req.user.id);
+
+        const updatedUser = db.prepare('SELECT id, name, contact, username, role, created_at FROM users WHERE id = ?').get(req.user.id);
+        const token = generateToken(updatedUser);
+
+        // Record in audit log
+        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
+            .run(req.user.id, '✏️', 'Profile updated');
+
+        return res.json({
+            success: true,
+            message: 'Profile updated successfully.',
+            token,
+            user: updatedUser
+        });
+    } catch (err) {
+        console.error('Error updating profile:', err);
+        return res.status(500).json({ success: false, message: 'Server error during profile update.' });
+    }
+});
+
+// PUT /api/auth/password
+router.put('/password', authenticateToken, (req, res) => {
+    try {
+        const { currentPassword, newPassword, confirmPassword } = req.body;
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            return res.status(400).json({ success: false, message: 'All password fields are required.' });
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ success: false, message: 'New password and confirm password do not match.' });
+        }
+
+        // Get full user with password hash
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+        
+        const isMatch = bcrypt.compareSync(currentPassword, user.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Incorrect current password.' });
+        }
+
+        // Password complexity validation matching frontend requirements
+        if (newPassword.length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long.' });
+        }
+        if (!/[A-Z]/.test(newPassword)) {
+            return res.status(400).json({ success: false, message: 'Password must contain at least one uppercase letter.' });
+        }
+        if (!/\d/.test(newPassword)) {
+            return res.status(400).json({ success: false, message: 'Password must contain at least one number.' });
+        }
+        if (!/[^a-zA-Z0-9]/.test(newPassword)) {
+            return res.status(400).json({ success: false, message: 'Password must contain at least one symbol.' });
+        }
+
+        const passwordHash = bcrypt.hashSync(newPassword, 10);
+        db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, req.user.id);
+
+        // Record in audit log
+        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
+            .run(req.user.id, '🔑', 'Password changed');
+
+        return res.json({
+            success: true,
+            message: 'Password changed successfully.'
+        });
+    } catch (err) {
+        console.error('Error changing password:', err);
+        return res.status(500).json({ success: false, message: 'Server error during password change.' });
+    }
 });
 
 module.exports = router;
