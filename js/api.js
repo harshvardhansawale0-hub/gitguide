@@ -283,6 +283,18 @@
                     method: 'POST',
                     body: { commandName: commandName, selectedFlags: selectedFlags, argument: argument }
                 });
+            },
+            aiSynthesize: async function (prompt) {
+                return await request('/commands/ai-synthesize', {
+                    method: 'POST',
+                    body: { prompt: prompt }
+                });
+            },
+            aiExplain: async function (command) {
+                return await request('/commands/ai-explain', {
+                    method: 'POST',
+                    body: { command: command }
+                });
             }
         },
 

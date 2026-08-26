@@ -21,7 +21,7 @@ A production-ready full-stack web application designed for developers facing Git
 1. **Home Page**: Hero search bar with instant autocomplete, dynamic category cards with live guide counts, and trending articles feed.
 2. **Search & Filter Page**: Real-time filtering by keyword, topic category, and difficulty level (`Beginner`, `Intermediate`, `Advanced`).
 3. **Article Detail Page**: Step-by-step solutions with formatted bash commands, one-click copy buttons, user bookmarks, 5-star rating system, and community comments.
-4. **Command Synthesizer**: Interactive Git command builder with flag combination, custom arguments, and automated dangerous command warnings (`git reset --hard`, `git push --force`, `git clean`, etc.).
+4. **Groq AI Command Synthesizer**: Dual-mode intelligent CLI synthesizer translating plain-English natural language into precision Git commands (`POST /api/commands/ai-synthesize`), interactive flag combinators, syntax breakdowns, automated safety risk levels (`safe`, `caution`, `danger`), and copyable undo blueprints.
 5. **Error Log Analyzer**: Intelligent terminal error log analyzer using backend pattern matching and keyword relevance scoring to suggest precise solutions and guide links.
 6. **User Dashboard**: Personalized user area showcasing saved bookmarks, submitted comments, and account activity.
 7. **Admin Dashboard**: Full CRUD management for articles and categories, comment moderation, live KPI metrics (articles, users, ratings, comments), and audit log timeline.
@@ -161,10 +161,12 @@ npm test
 - `GET /api/bookmarks` – Get user's saved guides
 - `POST /api/bookmarks/toggle` – Toggle bookmark for an article
 
-### Troubleshooting & CLI
-- `POST /api/troubleshooting/analyze` – Match terminal error log against knowledge base
+### Troubleshooting & Groq AI Synthesizer
+- `POST /api/troubleshooting/analyze` – Match terminal error log against knowledge base with Groq AI diagnosis
 - `GET /api/commands` – Fetch full Git commands catalogue
 - `POST /api/commands/synthesize` – Validate flag combinations & safety warnings
+- `POST /api/commands/ai-synthesize` – Translate natural language into precision Git commands with Groq AI
+- `POST /api/commands/ai-explain` – Deep AI flag breakdown and safety risk audit for any Git command
 
 ### Analytics & Dashboard (`/api/dashboard`)
 - `GET /api/dashboard/stats` – *(Admin)* KPI statistics

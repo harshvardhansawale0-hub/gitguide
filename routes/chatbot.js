@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const Groq = require('groq-sdk');
-const { authenticateToken } = require('../middleware/auth');
+const { optionalAuth } = require('../middleware/auth');
 
 const groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -29,7 +29,7 @@ router.get('/categories', (req, res) => {
     res.json({ success: true, count: CATEGORIES.length, data: CATEGORIES });
 });
 
-router.post('/query', authenticateToken, async (req, res) => {
+router.post('/query', optionalAuth, async (req, res) => {
     try {
         const { query, categoryId } = req.body;
 

@@ -3304,6 +3304,374 @@ p {
     transform: scale(1.03);
 }
 
+/* ============================================================
+   Groq AI Command Synthesizer Styles
+   ============================================================ */
+
+.synthesizer-tabs-wrapper {
+    background: var(--surface);
+    padding: 0.35rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    box-shadow: var(--shadow);
+}
+
+.synthesizer-tab {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    padding: 0.6rem 1.4rem;
+    border-radius: calc(var(--radius-lg) - 4px);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.synthesizer-tab:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.synthesizer-tab.active {
+    background: var(--primary);
+    color: #FFFFFF;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.3);
+}
+
+[data-theme="dark"] .synthesizer-tab.active {
+    background: var(--primary);
+    color: #0B1013;
+    font-weight: 700;
+    box-shadow: 0 0 15px rgba(114, 184, 255, 0.4);
+}
+
+.sample-prompt-chip {
+    font-family: inherit;
+    font-size: 0.82rem;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.sample-prompt-chip:hover {
+    border-color: var(--primary);
+    background: rgba(0, 240, 255, 0.08);
+    color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 240, 255, 0.15);
+}
+
+.sample-prompt-chip:active {
+    transform: translateY(0);
+}
+
+/* Synthesizer Results Display */
+.synthesizer-result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    animation: fadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    margin-bottom: 2rem;
+}
+
+.synthesizer-result-header {
+    background: var(--background-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 1.25rem 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.synthesizer-badge-group {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.ai-engine-tag {
+    background: rgba(0, 240, 255, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.category-tag {
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Danger Badges */
+.danger-badge {
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.danger-badge.safe {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.danger-badge.caution {
+    background: rgba(245, 158, 11, 0.12);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.danger-badge.danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+    animation: pulseDanger 2s infinite;
+}
+
+@keyframes pulseDanger {
+    0% { box-shadow: 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); }
+    100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0.4); }
+}
+
+/* Command Hero Box in Result Card */
+.synthesizer-command-hero {
+    background: var(--code-bg);
+    padding: 1.75rem;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+}
+
+.synthesizer-command-text {
+    font-family: 'Fira Code', Consolas, Monaco, monospace;
+    font-size: 1.25rem;
+    color: var(--code-text);
+    word-break: break-all;
+    line-height: 1.5;
+    padding-right: 3rem;
+}
+
+.synthesizer-command-text .prompt-symbol {
+    color: var(--primary);
+    font-weight: 700;
+    margin-right: 0.5rem;
+    user-select: none;
+}
+
+/* Danger Warning Alert in Result */
+.synthesizer-danger-alert {
+    padding: 1.25rem 1.75rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border);
+}
+
+.synthesizer-danger-alert.danger {
+    background: rgba(239, 68, 68, 0.08);
+    border-left: 4px solid var(--danger);
+}
+
+.synthesizer-danger-alert.caution {
+    background: rgba(245, 158, 11, 0.08);
+    border-left: 4px solid var(--warning);
+}
+
+.synthesizer-danger-alert.safe {
+    background: rgba(16, 185, 129, 0.06);
+    border-left: 4px solid var(--success);
+}
+
+/* Syntax Breakdown Table */
+.syntax-breakdown-section {
+    padding: 1.5rem 1.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.syntax-breakdown-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+}
+
+.breakdown-item {
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.breakdown-item-code {
+    font-family: 'Fira Code', Consolas, Monaco, monospace;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.breakdown-item-desc {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* Undo and Pro-Tip Cards */
+.synthesizer-meta-section {
+    padding: 1.5rem 1.75rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 768px) {
+    .synthesizer-meta-section {
+        grid-template-columns: 1fr;
+    }
+}
+
+.undo-box {
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+}
+
+.undo-box-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--warning);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.undo-code-box {
+    font-family: 'Fira Code', Consolas, Monaco, monospace;
+    font-size: 0.85rem;
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 0.6rem 0.85rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    word-break: break-all;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.4rem;
+}
+
+.pro-tip-box {
+    background: rgba(0, 240, 255, 0.04);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+}
+
+.pro-tip-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.pro-tip-text {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Related Articles List in Result */
+.synthesizer-related-articles {
+    padding: 1.25rem 1.75rem;
+    background: var(--background);
+}
+
+.synthesizer-related-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.synthesizer-related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem;
+}
+
+.synthesizer-article-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.2s ease;
+    display: block;
+}
+
+.synthesizer-article-pill:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+}
+
 /* ==========================================
    ARTICLE SIDEBAR LAYOUT 
    ========================================== */
