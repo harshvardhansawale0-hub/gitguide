@@ -262,7 +262,7 @@ async function renderCategories() {
     catList.forEach(function (cat, index) {
         var num = (index + 1).toString().padStart(2, '0');
         var iconHtml = cat.icon || '📁';
-        html += '<a href="search.html?category=' + encodeURIComponent(cat.name) + '" class="category-editorial-item reveal" style="transition-delay: ' + (index * 50) + 'ms;">';
+        html += '<a href="search.html?category=' + encodeURIComponent(cat.name) + '" class="category-editorial-item reveal">';
         html += '  <div class="cat-number">' + num + '</div>';
         html += '  <div class="cat-content">';
         html += '    <div class="cat-icon">' + iconHtml + '</div>';
@@ -303,7 +303,7 @@ async function renderTrendingArticles() {
     var html = '';
     trendingList.forEach(function (article, index) {
         var num = (index + 1).toString().padStart(2, '0');
-        html += '<a href="article.html?id=' + article.id + '" class="trending-feed-item reveal" style="transition-delay: ' + (index * 50) + 'ms;">';
+        html += '<a href="article.html?id=' + article.id + '" class="trending-feed-item reveal">';
         html += '  <div class="feed-number">' + num + '</div>';
         html += '  <div class="feed-content">';
         html += '    <h3>' + article.title + '</h3>';
@@ -438,10 +438,6 @@ function initScrollObserver() {
 
     var revealElements = document.querySelectorAll('.reveal');
     revealElements.forEach(function(el, index) {
-        // Stagger delays based on position if they are cards in a grid
-        if (el.classList.contains('category-card') || el.classList.contains('article-card')) {
-            el.style.transitionDelay = (index % 4) * 80 + 'ms';
-        }
         observer.observe(el);
     });
 }
