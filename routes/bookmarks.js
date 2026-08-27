@@ -8,9 +8,9 @@ const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/bookmarks – Get all bookmarked articles for logged-in user
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
-        const bookmarks = db.prepare(`
+        const [bookmarks] = await db.query(`
             SELECT 
                 b.id AS bookmarkId,
                 b.created_at AS bookmarkedAt,
@@ -26,7 +26,7 @@ router.get('/', authenticateToken, (req, res) => {
             JOIN categories c ON c.id = a.category_id
             WHERE b.user_id = ?
             ORDER BY b.created_at DESC
-        `).all(req.user.id);
+        `, [req.user.id]);
 
         return res.json({ success: true, count: bookmarks.length, data: bookmarks });
     } catch (err) {
@@ -36,9 +36,9 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // GET /api/bookmarks/ids – Get list of bookmarked article IDs
-router.get('/ids', authenticateToken, (req, res) => {
+router.get('/ids', authenticateToken, async (req, res) => {
     try {
-        const rows = db.prepare('SELECT article_id FROM bookmarks WHERE user_id = ?').all(req.user.id);
+        const [rows] = await db.query('SELECT article_id FROM bookmarks WHERE user_id = ?', [req.user.id]);
         const ids = rows.map(r => r.article_id);
         return res.json({ success: true, data: ids });
     } catch (err) {
@@ -48,7 +48,7 @@ router.get('/ids', authenticateToken, (req, res) => {
 });
 
 // POST /api/bookmarks/toggle – Toggle bookmark status
-router.post('/toggle', authenticateToken, (req, res) => {
+router.post('/toggle', authenticateToken, async (req, res) => {
     try {
         const { articleId } = req.body;
         const artId = parseInt(articleId);
@@ -57,18 +57,20 @@ router.post('/toggle', authenticateToken, (req, res) => {
             return res.status(400).json({ success: false, message: 'Valid articleId is required.' });
         }
 
-        const article = db.prepare('SELECT title FROM articles WHERE id = ?').get(artId);
-        if (!article) {
+        const [articles] = await db.query('SELECT title FROM articles WHERE id = ?', [artId]);
+        if (articles.length === 0) {
             return res.status(404).json({ success: false, message: 'Article not found.' });
         }
+        const article = articles[0];
 
-        const existing = db.prepare('SELECT id FROM bookmarks WHERE article_id = ? AND user_id = ?').get(artId, req.user.id);
+        const [existing] = await db.query('SELECT id FROM bookmarks WHERE article_id = ? AND user_id = ?', [artId, req.user.id]);
 
-        if (existing) {
-            db.prepare('DELETE FROM bookmarks WHERE id = ?').run(existing.id);
+        if (existing.length > 0) {
+            await db.query('DELETE FROM bookmarks WHERE id = ?', [existing[0].id]);
             
-            db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-                .run(req.user.id, '🔖', `Removed bookmark for "${article.title}"`);
+            await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+                req.user.id, '🔖', `Removed bookmark for "${article.title}"`
+            ]);
                 
             return res.json({
                 success: true,
@@ -76,10 +78,11 @@ router.post('/toggle', authenticateToken, (req, res) => {
                 message: 'Bookmark removed.'
             });
         } else {
-            db.prepare('INSERT INTO bookmarks (article_id, user_id) VALUES (?, ?)').run(artId, req.user.id);
+            await db.query('INSERT INTO bookmarks (article_id, user_id) VALUES (?, ?)', [artId, req.user.id]);
             
-            db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-                .run(req.user.id, '🔖', `Bookmarked "${article.title}"`);
+            await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+                req.user.id, '🔖', `Bookmarked "${article.title}"`
+            ]);
                 
             return res.json({
                 success: true,

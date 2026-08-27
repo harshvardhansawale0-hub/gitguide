@@ -67,21 +67,22 @@ Return a valid JSON object matching this schema exactly:
 Respond ONLY with the raw JSON object. Do not include markdown code fences around the JSON.`;
 
 // Helper: Find matching database articles for a given command/keyword
-function findRelatedArticlesForCommand(commandStr, keywords = []) {
+async function findRelatedArticlesForCommand(commandStr, keywords = []) {
     try {
         const queryText = (commandStr + ' ' + keywords.join(' ')).toLowerCase();
-        const articles = db.prepare(`
+        const [articles] = await db.query(`
             SELECT 
                 a.id, 
                 a.title, 
                 a.description, 
                 a.difficulty, 
                 a.reading_time AS readingTime,
-                c.name AS category
+                c.name AS category,
+                a.commands
             FROM articles a
             LEFT JOIN categories c ON c.id = a.category_id
             WHERE a.status = 'Published'
-        `).all();
+        `);
 
         const matches = [];
         articles.forEach(art => {
@@ -99,7 +100,7 @@ function findRelatedArticlesForCommand(commandStr, keywords = []) {
             // Check if article commands match
             if (art.commands) {
                 try {
-                    const cmdList = JSON.parse(art.commands);
+                    const cmdList = typeof art.commands === 'string' ? JSON.parse(art.commands) : art.commands;
                     cmdList.forEach(c => {
                         if (queryText.includes(c.toLowerCase())) score += 6;
                     });
@@ -211,14 +212,14 @@ function generateFallbackSynthesis(prompt) {
 // ============================================================
 // 1. GET /api/commands – List all Git commands catalog
 // ============================================================
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
-        const rows = db.prepare('SELECT * FROM git_commands ORDER BY id ASC').all();
+        const [rows] = await db.query('SELECT * FROM git_commands ORDER BY id ASC');
         const commands = rows.map(r => ({
             id: r.id,
             name: r.name,
             description: r.description,
-            flags: r.flags ? JSON.parse(r.flags) : [],
+            flags: typeof r.flags === 'string' ? JSON.parse(r.flags) : (r.flags || []),
             requiresArg: Boolean(r.requires_arg),
             argPlaceholder: r.arg_placeholder || ''
         }));
@@ -233,7 +234,7 @@ router.get('/', (req, res) => {
 // ============================================================
 // 2. POST /api/commands/synthesize – Backend command safety analyzer & formatter
 // ============================================================
-router.post('/synthesize', authenticateToken, (req, res) => {
+router.post('/synthesize', authenticateToken, async (req, res) => {
     try {
         const { commandName, selectedFlags = [], argument = '' } = req.body;
 
@@ -241,12 +242,13 @@ router.post('/synthesize', authenticateToken, (req, res) => {
             return res.status(400).json({ success: false, message: 'commandName is required.' });
         }
 
-        const cmd = db.prepare('SELECT * FROM git_commands WHERE name = ?').get(commandName);
-        if (!cmd) {
+        const [cmds] = await db.query('SELECT * FROM git_commands WHERE name = ?', [commandName]);
+        if (cmds.length === 0) {
             return res.status(404).json({ success: false, message: 'Command not recognized.' });
         }
+        const cmd = cmds[0];
 
-        const allFlags = cmd.flags ? JSON.parse(cmd.flags) : [];
+        const allFlags = typeof cmd.flags === 'string' ? JSON.parse(cmd.flags) : (cmd.flags || []);
         const parts = [commandName];
         let isDangerous = false;
         let dangerLevel = 'safe';
@@ -284,7 +286,7 @@ router.post('/synthesize', authenticateToken, (req, res) => {
             }
         }
 
-        const matchedArticles = findRelatedArticlesForCommand(synthesized, [commandName]);
+        const matchedArticles = await findRelatedArticlesForCommand(synthesized, [commandName]);
 
         return res.json({
             success: true,
@@ -332,7 +334,7 @@ router.post('/ai-synthesize', authenticateToken, async (req, res) => {
                 const rawContent = completion.choices[0]?.message?.content || '{}';
                 const aiResult = JSON.parse(rawContent);
 
-                const matchedArticles = findRelatedArticlesForCommand(
+                const matchedArticles = await findRelatedArticlesForCommand(
                     aiResult.command || trimmedPrompt,
                     [aiResult.category, ...(aiResult.breakdown?.map(b => b.part) || [])]
                 );
@@ -364,7 +366,7 @@ router.post('/ai-synthesize', authenticateToken, async (req, res) => {
 
         // 2. Fallback Heuristic Synthesis
         const fallback = generateFallbackSynthesis(trimmedPrompt);
-        const matchedArticles = findRelatedArticlesForCommand(fallback.command, [fallback.category]);
+        const matchedArticles = await findRelatedArticlesForCommand(fallback.command, [fallback.category]);
 
         return res.json({
             success: true,
@@ -412,7 +414,7 @@ router.post('/ai-explain', authenticateToken, async (req, res) => {
                 const rawContent = completion.choices[0]?.message?.content || '{}';
                 const aiResult = JSON.parse(rawContent);
 
-                const matchedArticles = findRelatedArticlesForCommand(
+                const matchedArticles = await findRelatedArticlesForCommand(
                     trimmedCmd,
                     [aiResult.category, ...(aiResult.breakdown?.map(b => b.part) || [])]
                 );
@@ -453,7 +455,7 @@ router.post('/ai-explain', authenticateToken, async (req, res) => {
             meaning: p.startsWith('-') ? `Flag option: ${p}` : `Command token: ${p}`
         }));
 
-        const matchedArticles = findRelatedArticlesForCommand(trimmedCmd, parts);
+        const matchedArticles = await findRelatedArticlesForCommand(trimmedCmd, parts);
 
         return res.json({
             success: true,

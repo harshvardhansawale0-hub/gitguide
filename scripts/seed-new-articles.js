@@ -1590,100 +1590,105 @@ const newArticles = [
 // ============================================================
 // SEED FUNCTION
 // ============================================================
-function seedNewArticles() {
+async function seedNewArticles() {
     console.log('🌱 Starting GitGuide new articles seed...\n');
+    
+    const connection = await db.getConnection();
 
-    // Get existing article titles to avoid duplicates
-    const existingTitles = new Set(
-        db.prepare('SELECT title FROM articles').all().map(r => r.title.toLowerCase())
-    );
+    try {
+        // Get existing article titles to avoid duplicates
+        const [titleRows] = await connection.query('SELECT title FROM articles');
+        const existingTitles = new Set(
+            titleRows.map(r => r.title.toLowerCase())
+        );
 
-    // Get existing article IDs
-    const existingIds = new Set(
-        db.prepare('SELECT id FROM articles').all().map(r => r.id)
-    );
+        // Get existing article IDs
+        const [idRows] = await connection.query('SELECT id FROM articles');
+        const existingIds = new Set(
+            idRows.map(r => r.id)
+        );
 
-    // Get valid categories
-    const validCategories = new Set(
-        db.prepare('SELECT id FROM categories').all().map(r => r.id)
-    );
+        // Get valid categories
+        const [catRows] = await connection.query('SELECT id FROM categories');
+        const validCategories = new Set(
+            catRows.map(r => r.id)
+        );
 
-    console.log(`📊 Existing articles: ${existingIds.size}`);
-    console.log(`📊 New articles to process: ${newArticles.length}`);
-    console.log(`📊 Valid categories: ${[...validCategories].join(', ')}\n`);
+        console.log(`📊 Existing articles: ${existingIds.size}`);
+        console.log(`📊 New articles to process: ${newArticles.length}`);
+        console.log(`📊 Valid categories: ${[...validCategories].join(', ')}\n`);
 
-    // Clean up any junk test entries (IDs 25-28 that may have been test data)
-    const junkIds = [25, 26, 27, 28];
-    const junkEntries = db.prepare(
-        `SELECT id, title FROM articles WHERE id IN (${junkIds.join(',')}) AND title NOT IN (${newArticles.filter(a => junkIds.includes(a.id)).map(a => `'${a.title.replace(/'/g, "''")}'`).join(',')})`
-    ).all();
+        // Clean up any junk test entries (IDs 25-28 that may have been test data)
+        const junkIds = [25, 26, 27, 28];
+        const validTitlesStr = newArticles.filter(a => junkIds.includes(a.id)).map(a => `'${a.title.replace(/'/g, "''")}'`).join(',');
+        
+        const [junkEntries] = await connection.query(
+            `SELECT id, title FROM articles WHERE id IN (${junkIds.join(',')}) AND title NOT IN (${validTitlesStr || "''"})`
+        );
 
-    if (junkEntries.length > 0) {
-        console.log(`🧹 Cleaning ${junkEntries.length} junk test entries...`);
-        junkEntries.forEach(j => {
-            db.prepare('DELETE FROM article_steps WHERE article_id = ?').run(j.id);
-            db.prepare('DELETE FROM article_faqs WHERE article_id = ?').run(j.id);
-            db.prepare('DELETE FROM comments WHERE article_id = ?').run(j.id);
-            db.prepare('DELETE FROM ratings WHERE article_id = ?').run(j.id);
-            db.prepare('DELETE FROM bookmarks WHERE article_id = ?').run(j.id);
-            db.prepare('DELETE FROM articles WHERE id = ?').run(j.id);
-            console.log(`   Removed junk entry #${j.id}: "${j.title}"`);
-        });
-        console.log('');
-    }
+        await connection.beginTransaction();
 
-    // Prepare insert statements
-    const insertArticle = db.prepare(`
-        INSERT OR IGNORE INTO articles (id, title, category_id, difficulty, description, reading_time, author, keywords, commands, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Published')
-    `);
+        if (junkEntries.length > 0) {
+            console.log(`🧹 Cleaning ${junkEntries.length} junk test entries...`);
+            for (const j of junkEntries) {
+                await connection.query('DELETE FROM article_steps WHERE article_id = ?', [j.id]);
+                await connection.query('DELETE FROM article_faqs WHERE article_id = ?', [j.id]);
+                await connection.query('DELETE FROM comments WHERE article_id = ?', [j.id]);
+                await connection.query('DELETE FROM ratings WHERE article_id = ?', [j.id]);
+                await connection.query('DELETE FROM bookmarks WHERE article_id = ?', [j.id]);
+                await connection.query('DELETE FROM articles WHERE id = ?', [j.id]);
+                console.log(`   Removed junk entry #${j.id}: "${j.title}"`);
+            }
+            console.log('');
+        }
 
-    const insertStep = db.prepare(`
-        INSERT INTO article_steps (article_id, step_number, title, content, command)
-        VALUES (?, ?, ?, ?, ?)
-    `);
+        // Prepare insert statements
+        const insertArticleQuery = `
+            INSERT IGNORE INTO articles (id, title, category_id, difficulty, description, reading_time, author, keywords, commands, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Published')
+        `;
 
-    const insertFaq = db.prepare(`
-        INSERT INTO article_faqs (article_id, question, answer)
-        VALUES (?, ?, ?)
-    `);
+        const insertStepQuery = `
+            INSERT INTO article_steps (article_id, step_number, title, content, command)
+            VALUES (?, ?, ?, ?, ?)
+        `;
 
-    // Use a transaction for atomic insertion
-    const seedTransaction = db.transaction(() => {
+        const insertFaqQuery = `
+            INSERT INTO article_faqs (article_id, question, answer)
+            VALUES (?, ?, ?)
+        `;
+
         let inserted = 0;
         let skipped = 0;
 
-        newArticles.forEach(art => {
+        for (const art of newArticles) {
             // Skip if title already exists (case-insensitive)
             if (existingTitles.has(art.title.toLowerCase())) {
                 console.log(`⏭️  Skipped (duplicate title): "${art.title}"`);
                 skipped++;
-                return;
+                continue;
             }
 
             // Validate category
             if (!validCategories.has(art.category_id)) {
                 console.log(`⚠️  Skipped (invalid category ${art.category_id}): "${art.title}"`);
                 skipped++;
-                return;
+                continue;
             }
 
             // Delete any existing entry with this ID (handles junk entries)
-            const existingWithId = db.prepare('SELECT id FROM articles WHERE id = ?').get(art.id);
-            if (existingWithId) {
-                db.prepare('DELETE FROM article_steps WHERE article_id = ?').run(art.id);
-                db.prepare('DELETE FROM article_faqs WHERE article_id = ?').run(art.id);
-                db.prepare('DELETE FROM comments WHERE article_id = ?').run(art.id);
-                db.prepare('DELETE FROM ratings WHERE article_id = ?').run(art.id);
-                db.prepare('DELETE FROM bookmarks WHERE article_id = ?').run(art.id);
-                db.prepare('DELETE FROM articles WHERE id = ?').run(art.id);
+            const [existingWithId] = await connection.query('SELECT id FROM articles WHERE id = ?', [art.id]);
+            if (existingWithId.length > 0) {
+                await connection.query('DELETE FROM article_steps WHERE article_id = ?', [art.id]);
+                await connection.query('DELETE FROM article_faqs WHERE article_id = ?', [art.id]);
+                await connection.query('DELETE FROM comments WHERE article_id = ?', [art.id]);
+                await connection.query('DELETE FROM ratings WHERE article_id = ?', [art.id]);
+                await connection.query('DELETE FROM bookmarks WHERE article_id = ?', [art.id]);
+                await connection.query('DELETE FROM articles WHERE id = ?', [art.id]);
             }
 
             // Insert article
-            const result = db.prepare(`
-                INSERT INTO articles (id, title, category_id, difficulty, description, reading_time, author, keywords, commands, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Published')
-            `).run(
+            await connection.query(insertArticleQuery, [
                 art.id,
                 art.title,
                 art.category_id,
@@ -1693,76 +1698,96 @@ function seedNewArticles() {
                 art.author || 'GitGuide Team',
                 art.keywords || '[]',
                 art.commands || '[]'
-            );
+            ]);
 
             // Insert steps
             if (art.steps && Array.isArray(art.steps)) {
-                art.steps.forEach((step, idx) => {
-                    insertStep.run(art.id, idx + 1, step.title || '', step.content || '', step.command || null);
-                });
+                for (let idx = 0; idx < art.steps.length; idx++) {
+                    const step = art.steps[idx];
+                    await connection.query(insertStepQuery, [
+                        art.id, idx + 1, step.title || '', step.content || '', step.command || null
+                    ]);
+                }
             }
 
             // Insert FAQs
             if (art.faqs && Array.isArray(art.faqs)) {
-                art.faqs.forEach(faq => {
-                    insertFaq.run(art.id, faq.question || '', faq.answer || '');
-                });
+                for (const faq of art.faqs) {
+                    await connection.query(insertFaqQuery, [
+                        art.id, faq.question || '', faq.answer || ''
+                    ]);
+                }
             }
 
             inserted++;
             console.log(`✅ #${art.id} "${art.title}" (${art.steps ? art.steps.length : 0} steps, ${art.faqs ? art.faqs.length : 0} FAQs)`);
+        }
+
+        await connection.commit();
+
+        // Final counts
+        const [totalArticlesRows] = await connection.query('SELECT COUNT(*) as count FROM articles');
+        const totalArticles = totalArticlesRows[0].count;
+        
+        const [totalStepsRows] = await connection.query('SELECT COUNT(*) as count FROM article_steps');
+        const totalSteps = totalStepsRows[0].count;
+        
+        const [totalFaqsRows] = await connection.query('SELECT COUNT(*) as count FROM article_faqs');
+        const totalFaqs = totalFaqsRows[0].count;
+
+        // Category breakdown
+        const [categoryBreakdown] = await connection.query(`
+            SELECT c.name, COUNT(a.id) as count
+            FROM categories c
+            LEFT JOIN articles a ON a.category_id = c.id
+            GROUP BY c.id
+            ORDER BY c.id
+        `);
+
+        // Check for duplicate titles
+        const [duplicates] = await connection.query(`
+            SELECT title, COUNT(*) as cnt FROM articles GROUP BY LOWER(title) HAVING cnt > 1
+        `);
+
+        console.log('\n' + '='.repeat(60));
+        console.log('📊 SEED RESULTS');
+        console.log('='.repeat(60));
+        console.log(`✅ New articles inserted: ${inserted}`);
+        console.log(`⏭️  Skipped: ${skipped}`);
+        console.log(`📄 Total articles in database: ${totalArticles}`);
+        console.log(`📝 Total steps: ${totalSteps}`);
+        console.log(`❓ Total FAQs: ${totalFaqs}`);
+        console.log('\n📁 Articles by Category:');
+        categoryBreakdown.forEach(c => {
+            console.log(`   ${c.name}: ${c.count}`);
         });
 
-        return { inserted, skipped };
-    });
+        if (duplicates.length > 0) {
+            console.log('\n⚠️  DUPLICATE TITLES FOUND:');
+            duplicates.forEach(d => console.log(`   "${d.title}" (${d.cnt} times)`));
+        } else {
+            console.log('\n✅ No duplicate titles found');
+        }
 
-    const result = seedTransaction();
+        console.log('\n🎉 Seed complete!\n');
 
-    // Final counts
-    const totalArticles = db.prepare('SELECT COUNT(*) as count FROM articles').get().count;
-    const totalSteps = db.prepare('SELECT COUNT(*) as count FROM article_steps').get().count;
-    const totalFaqs = db.prepare('SELECT COUNT(*) as count FROM article_faqs').get().count;
-
-    // Category breakdown
-    const categoryBreakdown = db.prepare(`
-        SELECT c.name, COUNT(a.id) as count
-        FROM categories c
-        LEFT JOIN articles a ON a.category_id = c.id
-        GROUP BY c.id
-        ORDER BY c.id
-    `).all();
-
-    // Check for duplicate titles
-    const duplicates = db.prepare(`
-        SELECT title, COUNT(*) as cnt FROM articles GROUP BY LOWER(title) HAVING cnt > 1
-    `).all();
-
-    console.log('\n' + '='.repeat(60));
-    console.log('📊 SEED RESULTS');
-    console.log('='.repeat(60));
-    console.log(`✅ New articles inserted: ${result.inserted}`);
-    console.log(`⏭️  Skipped: ${result.skipped}`);
-    console.log(`📄 Total articles in database: ${totalArticles}`);
-    console.log(`📝 Total steps: ${totalSteps}`);
-    console.log(`❓ Total FAQs: ${totalFaqs}`);
-    console.log('\n📁 Articles by Category:');
-    categoryBreakdown.forEach(c => {
-        console.log(`   ${c.name}: ${c.count}`);
-    });
-
-    if (duplicates.length > 0) {
-        console.log('\n⚠️  DUPLICATE TITLES FOUND:');
-        duplicates.forEach(d => console.log(`   "${d.title}" (${d.cnt} times)`));
-    } else {
-        console.log('\n✅ No duplicate titles found');
+    } catch (err) {
+        await connection.rollback();
+        console.error('❌ Error seeding new articles:', err);
+        throw err;
+    } finally {
+        connection.release();
     }
-
-    console.log('\n🎉 Seed complete!\n');
 }
 
 // Run
 if (require.main === module) {
-    seedNewArticles();
+    seedNewArticles()
+        .then(() => process.exit(0))
+        .catch(err => {
+            console.error(err);
+            process.exit(1);
+        });
 }
 
 module.exports = seedNewArticles;

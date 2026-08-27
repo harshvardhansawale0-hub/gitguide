@@ -26,17 +26,17 @@ Analyze the developer's terminal error and return a valid JSON object with the f
   "category": "One of: Authentication, Merge Conflict, Branching & History, Remote & Push, Staging & Commits, Configuration, Network & Permissions",
   "rootCause": "Clear, concise 1-2 sentence explanation of why this error occurred.",
   "quickFix": "A single direct terminal command if an immediate fix exists (or null if it requires multiple steps)",
-  "solution": "Step-by-step resolution written in clean Markdown with numbered steps, \\\`\\\`\\\`bash code blocks for commands, and clear explanations.",
+  "solution": "Step-by-step resolution written in clean Markdown with numbered steps, \`\`\`bash code blocks for commands, and clear explanations.",
   "preventionTip": "Pro-tip or best practice on how to prevent this issue from happening again.",
   "relatedCommands": ["git push", "git pull", "ssh-keygen"]
 }
 Respond ONLY with the raw JSON object. Do not include markdown code fences around the JSON.`;
 
-// Helper: Query local database for related articles based on error text and keywords
-function findRelatedDatabaseArticles(errorText, aiKeywords = []) {
+// Helper: Query database for related articles based on error text and keywords
+async function findRelatedDatabaseArticles(errorText, aiKeywords = []) {
     try {
         const normalizedInput = (errorText + ' ' + aiKeywords.join(' ')).toLowerCase();
-        const articles = db.prepare(`
+        const [articles] = await db.query(`
             SELECT 
                 a.id, 
                 a.title, 
@@ -47,7 +47,7 @@ function findRelatedDatabaseArticles(errorText, aiKeywords = []) {
             FROM articles a
             LEFT JOIN categories c ON c.id = a.category_id
             WHERE a.status = 'Published'
-        `).all();
+        `);
 
         const matches = [];
         articles.forEach(art => {
@@ -76,9 +76,9 @@ function findRelatedDatabaseArticles(errorText, aiKeywords = []) {
 }
 
 // GET /api/troubleshooting/patterns – Get all error pattern definitions (legacy support)
-router.get('/patterns', (req, res) => {
+router.get('/patterns', async (req, res) => {
     try {
-        const rows = db.prepare(`
+        const [rows] = await db.query(`
             SELECT 
                 ep.id,
                 ep.title,
@@ -89,12 +89,12 @@ router.get('/patterns', (req, res) => {
             FROM error_patterns ep
             LEFT JOIN articles a ON a.id = ep.article_id
             ORDER BY ep.id ASC
-        `).all();
+        `);
 
         const patterns = rows.map(r => ({
             id: r.id,
             title: r.title,
-            keywords: r.keywords ? JSON.parse(r.keywords) : [],
+            keywords: typeof r.keywords === 'string' ? JSON.parse(r.keywords) : (r.keywords || []),
             solution: r.solution,
             articleId: r.articleId,
             articleTitle: r.articleTitle
@@ -135,7 +135,7 @@ router.post('/analyze', optionalAuth, async (req, res) => {
                 const rawContent = completion.choices[0]?.message?.content || '{}';
                 const aiResult = JSON.parse(rawContent);
 
-                const relatedArticles = findRelatedDatabaseArticles(
+                const relatedArticles = await findRelatedDatabaseArticles(
                     trimmedError,
                     [aiResult.category, ...(aiResult.relatedCommands || []), aiResult.title]
                 );
@@ -172,7 +172,7 @@ router.post('/analyze', optionalAuth, async (req, res) => {
 
         // 2. Fallback to Database Pattern Matching if Groq is unavailable or fails
         const normalizedInput = trimmedError.toLowerCase();
-        const rows = db.prepare(`
+        const [rows] = await db.query(`
             SELECT 
                 ep.id,
                 ep.title,
@@ -185,11 +185,11 @@ router.post('/analyze', optionalAuth, async (req, res) => {
             FROM error_patterns ep
             LEFT JOIN articles a ON a.id = ep.article_id
             LEFT JOIN categories c ON c.id = a.category_id
-        `).all();
+        `);
 
         const dbMatches = [];
         rows.forEach(r => {
-            const keywords = r.keywords ? JSON.parse(r.keywords) : [];
+            const keywords = typeof r.keywords === 'string' ? JSON.parse(r.keywords) : (r.keywords || []);
             let score = 0;
             const matchedKeywords = [];
 
@@ -260,4 +260,3 @@ router.post('/analyze', optionalAuth, async (req, res) => {
 });
 
 module.exports = router;
-

@@ -8,22 +8,22 @@ const { authenticateToken, optionalAuth, requireAdmin } = require('../middleware
 const router = express.Router();
 
 // GET /api/comments/article/:articleId – Get comments for an article
-router.get('/article/:articleId', (req, res) => {
+router.get('/article/:articleId', async (req, res) => {
     try {
         const articleId = parseInt(req.params.articleId);
-        const comments = db.prepare(`
+        const [comments] = await db.query(`
             SELECT 
                 id, 
                 article_id AS articleId, 
                 user_id AS userId,
                 name, 
                 text, 
-                strftime('%b %d, %Y', created_at) AS date,
+                DATE_FORMAT(created_at, '%b %d, %Y') AS date,
                 created_at AS createdAt
             FROM comments 
             WHERE article_id = ? 
             ORDER BY id ASC
-        `).all(articleId);
+        `, [articleId]);
 
         return res.json({ success: true, count: comments.length, data: comments });
     } catch (err) {
@@ -33,7 +33,7 @@ router.get('/article/:articleId', (req, res) => {
 });
 
 // POST /api/comments/article/:articleId – Post a comment
-router.post('/article/:articleId', authenticateToken, (req, res) => {
+router.post('/article/:articleId', authenticateToken, async (req, res) => {
     try {
         const articleId = parseInt(req.params.articleId);
         const { text, name } = req.body;
@@ -45,30 +45,33 @@ router.post('/article/:articleId', authenticateToken, (req, res) => {
         const authorName = req.user ? req.user.username : (name ? name.trim() : 'Anonymous');
         const userId = req.user ? req.user.id : null;
 
-        const article = db.prepare('SELECT title FROM articles WHERE id = ?').get(articleId);
-        if (!article) {
+        const [articles] = await db.query('SELECT title FROM articles WHERE id = ?', [articleId]);
+        if (articles.length === 0) {
             return res.status(404).json({ success: false, message: 'Article not found.' });
         }
+        const article = articles[0];
 
-        const result = db.prepare(`
+        const [result] = await db.query(`
             INSERT INTO comments (article_id, user_id, name, text)
             VALUES (?, ?, ?, ?)
-        `).run(articleId, userId, authorName, text.trim());
+        `, [articleId, userId, authorName, text.trim()]);
 
-        const newComment = db.prepare(`
+        const [newComments] = await db.query(`
             SELECT 
                 id, 
                 article_id AS articleId, 
                 name, 
                 text, 
-                strftime('%b %d, %Y', created_at) AS date,
+                DATE_FORMAT(created_at, '%b %d, %Y') AS date,
                 created_at AS createdAt
             FROM comments 
             WHERE id = ?
-        `).get(result.lastInsertRowid);
+        `, [result.insertId]);
+        const newComment = newComments[0];
 
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(userId, '💬', `New comment on "${article.title}" by ${authorName}`);
+        await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            userId, '💬', `New comment on "${article.title}" by ${authorName}`
+        ]);
 
         return res.status(201).json({ success: true, message: 'Comment posted successfully.', data: newComment });
     } catch (err) {
@@ -78,9 +81,9 @@ router.post('/article/:articleId', authenticateToken, (req, res) => {
 });
 
 // GET /api/comments – Admin get all comments with article titles
-router.get('/', authenticateToken, requireAdmin, (req, res) => {
+router.get('/', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const comments = db.prepare(`
+        const [comments] = await db.query(`
             SELECT 
                 c.id, 
                 c.article_id AS articleId, 
@@ -88,12 +91,12 @@ router.get('/', authenticateToken, requireAdmin, (req, res) => {
                 c.user_id AS userId,
                 c.name, 
                 c.text, 
-                strftime('%b %d, %Y', c.created_at) AS date,
+                DATE_FORMAT(c.created_at, '%b %d, %Y') AS date,
                 c.created_at AS createdAt
             FROM comments c
             LEFT JOIN articles a ON a.id = c.article_id
             ORDER BY c.created_at DESC
-        `).all();
+        `);
 
         return res.json({ success: true, count: comments.length, data: comments });
     } catch (err) {
@@ -103,24 +106,26 @@ router.get('/', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // DELETE /api/comments/:id – Delete comment (Admin or author)
-router.delete('/:id', authenticateToken, (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
     try {
         const commentId = parseInt(req.params.id);
-        const comment = db.prepare('SELECT * FROM comments WHERE id = ?').get(commentId);
+        const [comments] = await db.query('SELECT * FROM comments WHERE id = ?', [commentId]);
 
-        if (!comment) {
+        if (comments.length === 0) {
             return res.status(404).json({ success: false, message: 'Comment not found.' });
         }
+        const comment = comments[0];
 
         // Only admin or the author of the comment can delete it
         if (req.user.role !== 'admin' && comment.user_id !== req.user.id) {
             return res.status(403).json({ success: false, message: 'Unauthorized to delete this comment.' });
         }
 
-        db.prepare('DELETE FROM comments WHERE id = ?').run(commentId);
+        await db.query('DELETE FROM comments WHERE id = ?', [commentId]);
 
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(req.user.id, '🗑️', `Comment #${commentId} deleted`);
+        await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            req.user.id, '🗑️', `Comment #${commentId} deleted`
+        ]);
 
         return res.json({ success: true, message: 'Comment deleted successfully.' });
     } catch (err) {

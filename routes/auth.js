@@ -19,7 +19,7 @@ function generateToken(user) {
 }
 
 // POST /api/auth/register
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
     try {
         const { name, contact, username, password } = req.body;
 
@@ -44,23 +44,24 @@ router.post('/register', (req, res) => {
         }
 
         // Check if username is already taken
-        const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?)').get(cleanUsername);
+        const [existingRows] = await db.execute('SELECT id FROM users WHERE LOWER(username) = LOWER(?)', [cleanUsername]);
+        const existing = existingRows[0];
         if (existing) {
             return res.status(409).json({ success: false, message: 'Username already exists. Please choose another.' });
         }
 
         const passwordHash = bcrypt.hashSync(password, 10);
-        const result = db.prepare(`
+        const [result] = await db.execute(`
             INSERT INTO users (name, contact, username, password_hash, role)
             VALUES (?, ?, ?, ?, 'user')
-        `).run(name.trim(), contact ? contact.trim() : null, cleanUsername, passwordHash);
+        `, [name.trim(), contact ? contact.trim() : null, cleanUsername, passwordHash]);
 
-        const newUser = db.prepare('SELECT id, name, contact, username, role, created_at FROM users WHERE id = ?').get(result.lastInsertRowid);
+        const [newUserRows] = await db.execute('SELECT id, name, contact, username, role, created_at FROM users WHERE id = ?', [result.insertId]);
+        const newUser = newUserRows[0];
         const token = generateToken(newUser);
 
         // Record in audit log
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(newUser.id, '👤', `New user registered: "${newUser.username}"`);
+        await db.execute('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [newUser.id, '👤', `New user registered: "${newUser.username}"`]);
 
         return res.status(201).json({
             success: true,
@@ -80,7 +81,7 @@ router.post('/register', (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
@@ -88,7 +89,8 @@ router.post('/login', (req, res) => {
             return res.status(400).json({ success: false, message: 'Username and password are required.' });
         }
 
-        const user = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(username.trim());
+        const [userRows] = await db.execute('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', [username.trim()]);
+        const user = userRows[0];
         if (!user) {
             return res.status(401).json({ success: false, message: 'Invalid username or password.' });
         }
@@ -101,9 +103,8 @@ router.post('/login', (req, res) => {
         const token = generateToken(user);
 
         // Record successful login
-        db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(user.id, '🔑', 'Successful login');
+        await db.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+        await db.execute('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [user.id, '🔑', 'Successful login']);
 
         return res.json({
             success: true,
@@ -131,7 +132,7 @@ router.get('/me', authenticateToken, (req, res) => {
 });
 
 // PUT /api/auth/profile
-router.put('/profile', authenticateToken, (req, res) => {
+router.put('/profile', authenticateToken, async (req, res) => {
     try {
         const { name, contact, username } = req.body;
         
@@ -142,20 +143,20 @@ router.put('/profile', authenticateToken, (req, res) => {
         const cleanUsername = username.trim();
         
         // Check if username is taken by another user
-        const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?').get(cleanUsername, req.user.id);
+        const [existingRows] = await db.execute('SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?', [cleanUsername, req.user.id]);
+        const existing = existingRows[0];
         if (existing) {
             return res.status(409).json({ success: false, message: 'Username already exists. Please choose another.' });
         }
 
-        db.prepare('UPDATE users SET name = ?, contact = ?, username = ? WHERE id = ?')
-            .run(name.trim(), contact ? contact.trim() : null, cleanUsername, req.user.id);
+        await db.execute('UPDATE users SET name = ?, contact = ?, username = ? WHERE id = ?', [name.trim(), contact ? contact.trim() : null, cleanUsername, req.user.id]);
 
-        const updatedUser = db.prepare('SELECT id, name, contact, username, role, created_at FROM users WHERE id = ?').get(req.user.id);
+        const [updatedUserRows] = await db.execute('SELECT id, name, contact, username, role, created_at FROM users WHERE id = ?', [req.user.id]);
+        const updatedUser = updatedUserRows[0];
         const token = generateToken(updatedUser);
 
         // Record in audit log
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(req.user.id, '✏️', 'Profile updated');
+        await db.execute('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [req.user.id, '✏️', 'Profile updated']);
 
         return res.json({
             success: true,
@@ -170,7 +171,7 @@ router.put('/profile', authenticateToken, (req, res) => {
 });
 
 // PUT /api/auth/password
-router.put('/password', authenticateToken, (req, res) => {
+router.put('/password', authenticateToken, async (req, res) => {
     try {
         const { currentPassword, newPassword, confirmPassword } = req.body;
 
@@ -183,7 +184,8 @@ router.put('/password', authenticateToken, (req, res) => {
         }
 
         // Get full user with password hash
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+        const [userRows] = await db.execute('SELECT * FROM users WHERE id = ?', [req.user.id]);
+        const user = userRows[0];
         
         const isMatch = bcrypt.compareSync(currentPassword, user.password_hash);
         if (!isMatch) {
@@ -205,11 +207,10 @@ router.put('/password', authenticateToken, (req, res) => {
         }
 
         const passwordHash = bcrypt.hashSync(newPassword, 10);
-        db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, req.user.id);
+        await db.execute('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, req.user.id]);
 
         // Record in audit log
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(req.user.id, '🔑', 'Password changed');
+        await db.execute('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [req.user.id, '🔑', 'Password changed']);
 
         return res.json({
             success: true,

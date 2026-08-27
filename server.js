@@ -83,7 +83,7 @@ const server = app.listen(PORT, () => {
 ║  • Status:     Online & Serving Requests                  ║
 ║  • Local:      http://localhost:${PORT}                      ║
 ║  • API:        http://localhost:${PORT}/api/health           ║
-║  • Database:   SQLite (WAL Mode & Foreign Keys Active)    ║
+║  • Database:   MySQL (Connection Pool Active)             ║
 ║  • Auth:       JWT (7-day tokens + bcrypt encryption)     ║
 ╚═══════════════════════════════════════════════════════════╝
     `);

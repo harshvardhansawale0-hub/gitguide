@@ -8,22 +8,23 @@ const { authenticateToken, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/ratings/:articleId – Get rating summary
-router.get('/:articleId', optionalAuth, (req, res) => {
+router.get('/:articleId', optionalAuth, async (req, res) => {
     try {
         const articleId = parseInt(req.params.articleId);
 
-        const stats = db.prepare(`
+        const [statsRows] = await db.query(`
             SELECT 
                 COUNT(id) AS totalRatings,
                 COALESCE(AVG(rating), 0) AS averageRating
             FROM ratings
             WHERE article_id = ?
-        `).get(articleId);
+        `, [articleId]);
+        const stats = statsRows[0];
 
         let userRating = 0;
         if (req.user) {
-            const userVote = db.prepare('SELECT rating FROM ratings WHERE article_id = ? AND user_id = ?').get(articleId, req.user.id);
-            if (userVote) userRating = userVote.rating;
+            const [userVote] = await db.query('SELECT rating FROM ratings WHERE article_id = ? AND user_id = ?', [articleId, req.user.id]);
+            if (userVote.length > 0) userRating = userVote[0].rating;
         }
 
         return res.json({
@@ -42,7 +43,7 @@ router.get('/:articleId', optionalAuth, (req, res) => {
 });
 
 // POST /api/ratings/:articleId – Submit or update rating
-router.post('/:articleId', authenticateToken, (req, res) => {
+router.post('/:articleId', authenticateToken, async (req, res) => {
     try {
         const articleId = parseInt(req.params.articleId);
         const { rating } = req.body;
@@ -52,28 +53,31 @@ router.post('/:articleId', authenticateToken, (req, res) => {
             return res.status(400).json({ success: false, message: 'Rating must be an integer between 1 and 5.' });
         }
 
-        const article = db.prepare('SELECT title FROM articles WHERE id = ?').get(articleId);
-        if (!article) {
+        const [articles] = await db.query('SELECT title FROM articles WHERE id = ?', [articleId]);
+        if (articles.length === 0) {
             return res.status(404).json({ success: false, message: 'Article not found.' });
         }
+        const article = articles[0];
 
         // Upsert rating
-        db.prepare(`
+        await db.query(`
             INSERT INTO ratings (article_id, user_id, rating)
             VALUES (?, ?, ?)
-            ON CONFLICT(article_id, user_id) DO UPDATE SET rating = excluded.rating, created_at = CURRENT_TIMESTAMP
-        `).run(articleId, req.user.id, ratingVal);
+            ON DUPLICATE KEY UPDATE rating = VALUES(rating), created_at = CURRENT_TIMESTAMP
+        `, [articleId, req.user.id, ratingVal]);
 
-        const stats = db.prepare(`
+        const [statsRows] = await db.query(`
             SELECT 
                 COUNT(id) AS totalRatings,
                 COALESCE(AVG(rating), 0) AS averageRating
             FROM ratings
             WHERE article_id = ?
-        `).get(articleId);
+        `, [articleId]);
+        const stats = statsRows[0];
 
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(req.user.id, '⭐', `User "${req.user.username}" gave ${ratingVal} stars to "${article.title}"`);
+        await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            req.user.id, '⭐', `User "${req.user.username}" gave ${ratingVal} stars to "${article.title}"`
+        ]);
 
         return res.json({
             success: true,

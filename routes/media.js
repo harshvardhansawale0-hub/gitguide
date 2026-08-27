@@ -31,7 +31,7 @@ function enforceAdmin(req, res, next) {
 // Get all media belonging to one article
 // Protected
 // ============================================================
-router.get('/:articleId', authenticateToken, (req, res) => {
+router.get('/:articleId', authenticateToken, async (req, res) => {
     try {
         const articleId = parseInt(req.params.articleId, 10);
 
@@ -42,12 +42,12 @@ router.get('/:articleId', authenticateToken, (req, res) => {
             });
         }
 
-        const media = db.prepare(`
+        const [media] = await db.query(`
             SELECT *
             FROM article_media
             WHERE article_id = ?
             ORDER BY created_at ASC
-        `).all(articleId);
+        `, [articleId]);
 
         return res.json({
             success: true,
@@ -73,7 +73,7 @@ router.post(
     '/:articleId',
     authenticateToken,
     enforceAdmin,
-    (req, res) => {
+    async (req, res) => {
         try {
             const articleId = parseInt(req.params.articleId, 10);
 
@@ -94,12 +94,9 @@ router.post(
             } = req.body;
 
             // Verify that the article exists
-            // Current SQLite schema uses articles.id
-            const article = db
-                .prepare('SELECT id FROM articles WHERE id = ?')
-                .get(articleId);
+            const [articles] = await db.query('SELECT id FROM articles WHERE id = ?', [articleId]);
 
-            if (!article) {
+            if (articles.length === 0) {
                 return res.status(404).json({
                     success: false,
                     message: 'Article not found.'
@@ -257,7 +254,7 @@ router.post(
             // ====================================================
             // Save ONE media record linked to this article
             // ====================================================
-            const result = db.prepare(`
+            const [result] = await db.query(`
                 INSERT INTO article_media
                 (
                     article_id,
@@ -268,31 +265,31 @@ router.post(
                     file_size
                 )
                 VALUES (?, ?, ?, ?, ?, ?)
-            `).run(
+            `, [
                 articleId,
                 media_type,
                 finalUrl,
                 finalFileName,
                 finalMimeType,
                 finalFileSize
-            );
+            ]);
 
             // ====================================================
             // Save ONE audit log entry
             // ====================================================
-            db.prepare(`
+            await db.query(`
                 INSERT INTO audit_logs (user_id, icon, message)
                 VALUES (?, ?, ?)
-            `).run(
+            `, [
                 req.user.id,
                 '🖼️',
                 `Added ${media_type} to article #${articleId}`
-            );
+            ]);
 
             return res.status(201).json({
                 success: true,
                 message: 'Media added successfully.',
-                id: result.lastInsertRowid,
+                id: result.insertId,
                 article_id: articleId,
                 media_url: finalUrl
             });
@@ -317,7 +314,7 @@ router.delete(
     '/:mediaId',
     authenticateToken,
     enforceAdmin,
-    (req, res) => {
+    async (req, res) => {
         try {
             const mediaId = parseInt(req.params.mediaId, 10);
 
@@ -328,16 +325,15 @@ router.delete(
                 });
             }
 
-            const media = db
-                .prepare('SELECT * FROM article_media WHERE id = ?')
-                .get(mediaId);
+            const [mediaRows] = await db.query('SELECT * FROM article_media WHERE id = ?', [mediaId]);
 
-            if (!media) {
+            if (mediaRows.length === 0) {
                 return res.status(404).json({
                     success: false,
                     message: 'Media not found.'
                 });
             }
+            const media = mediaRows[0];
 
             // Delete physical file only for uploaded images/videos
             if (media.media_type !== 'url' && media.file_name) {
@@ -352,19 +348,17 @@ router.delete(
             }
 
             // Delete database record
-            db.prepare(
-                'DELETE FROM article_media WHERE id = ?'
-            ).run(mediaId);
+            await db.query('DELETE FROM article_media WHERE id = ?', [mediaId]);
 
             // Create ONE audit log
-            db.prepare(`
+            await db.query(`
                 INSERT INTO audit_logs (user_id, icon, message)
                 VALUES (?, ?, ?)
-            `).run(
+            `, [
                 req.user.id,
                 '🗑️',
                 `Deleted media #${mediaId} from article #${media.article_id}`
-            );
+            ]);
 
             return res.json({
                 success: true,

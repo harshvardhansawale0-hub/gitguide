@@ -11,12 +11,13 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^13.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "groq-sdk": "^1.5.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.9.7"
   },
   "keywords": [
     "git",
@@ -29,7 +30,6 @@
   "author": "GitGuide Team",
   "license": "ISC",
   "allowScripts": {
-    "groq-sdk@1.5.0": true,
-    "better-sqlite3@12.11.1": true
+    "groq-sdk@1.5.0": true
   }
 }

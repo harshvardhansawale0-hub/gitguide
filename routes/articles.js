@@ -19,8 +19,8 @@ function formatArticle(row) {
         description: row.description,
         readingTime: row.reading_time,
         author: row.author,
-        keywords: row.keywords ? JSON.parse(row.keywords) : [],
-        commands: row.commands ? JSON.parse(row.commands) : [],
+        keywords: typeof row.keywords === 'string' ? JSON.parse(row.keywords) : (row.keywords || []),
+        commands: typeof row.commands === 'string' ? JSON.parse(row.commands) : (row.commands || []),
         status: row.status,
         createdAt: row.created_at,
         updatedAt: row.updated_at
@@ -28,7 +28,7 @@ function formatArticle(row) {
 }
 
 // GET /api/articles/trending – Get trending articles for homepage
-router.get('/trending', (req, res) => {
+router.get('/trending', async (req, res) => {
     try {
         const trendingIds = [7, 2, 3, 4, 5, 6, 11, 8];
         const placeholders = trendingIds.map(() => '?').join(',');
@@ -42,7 +42,7 @@ router.get('/trending', (req, res) => {
             WHERE a.id IN (${placeholders}) AND a.status = 'Published'
         `;
 
-        const rows = db.prepare(query).all(...trendingIds);
+        const [rows] = await db.query(query, trendingIds);
         const articlesMap = new Map(rows.map(r => [r.id, formatArticle(r)]));
         // Maintain trending ordered list
         const trendingArticles = trendingIds
@@ -57,7 +57,7 @@ router.get('/trending', (req, res) => {
 });
 
 // GET /api/articles/suggestions – Fast title & keyword suggestions
-router.get('/suggestions', (req, res) => {
+router.get('/suggestions', async (req, res) => {
     try {
         const queryParam = (req.query.q || '').trim().toLowerCase();
         if (queryParam.length < 2) {
@@ -81,7 +81,7 @@ router.get('/suggestions', (req, res) => {
             LIMIT 6
         `;
         const pattern = `%${queryParam}%`;
-        const rows = db.prepare(query).all(pattern, pattern, pattern, pattern);
+        const [rows] = await db.query(query, [pattern, pattern, pattern, pattern]);
 
         const suggestions = rows.map(r => ({
             id: r.id,
@@ -97,7 +97,7 @@ router.get('/suggestions', (req, res) => {
 });
 
 // GET /api/articles – Search & filter articles
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const { q, category, difficulty, status } = req.query;
 
@@ -146,7 +146,7 @@ router.get('/', (req, res) => {
 
         sql += ' ORDER BY a.id ASC';
 
-        const rows = db.prepare(sql).all(...params);
+        const [rows] = await db.query(sql, params);
         const formatted = rows.map(formatArticle);
 
         return res.json({ success: true, count: formatted.length, data: formatted });
@@ -157,72 +157,75 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/articles/:id – Full article with steps, FAQs, comments, and rating metadata
-router.get('/:id', optionalAuth, (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
     try {
         const articleId = parseInt(req.params.id);
 
-        const articleRow = db.prepare(`
+        const [articleRows] = await db.query(`
             SELECT 
                 a.*, 
                 c.name AS category_name
             FROM articles a
             JOIN categories c ON c.id = a.category_id
             WHERE a.id = ?
-        `).get(articleId);
+        `, [articleId]);
+        
+        const articleRow = articleRows[0];
 
         if (!articleRow) {
             return res.status(404).json({ success: false, message: 'Article not found.' });
         }
 
         // Steps
-        const steps = db.prepare(`
+        const [steps] = await db.query(`
             SELECT id, step_number AS stepNumber, title, content, command 
             FROM article_steps 
             WHERE article_id = ? 
             ORDER BY step_number ASC
-        `).all(articleId);
+        `, [articleId]);
 
         // FAQs
-        const faqs = db.prepare(`
+        const [faqs] = await db.query(`
             SELECT id, question, answer 
             FROM article_faqs 
             WHERE article_id = ? 
             ORDER BY id ASC
-        `).all(articleId);
+        `, [articleId]);
 
         // Comments
-        const comments = db.prepare(`
+        const [comments] = await db.query(`
             SELECT 
                 id, 
                 article_id AS articleId, 
                 name, 
                 text, 
-                strftime('%b %d, %Y', created_at) AS date,
+                DATE_FORMAT(created_at, '%b %d, %Y') AS date,
                 created_at AS createdAt
             FROM comments 
             WHERE article_id = ? 
             ORDER BY id ASC
-        `).all(articleId);
+        `, [articleId]);
 
         // Rating Stats
-        const ratingStats = db.prepare(`
+        const [ratingStatsRows] = await db.query(`
             SELECT 
                 COUNT(id) AS totalRatings,
                 COALESCE(AVG(rating), 0) AS averageRating
             FROM ratings
             WHERE article_id = ?
-        `).get(articleId);
+        `, [articleId]);
+        const ratingStats = ratingStatsRows[0];
 
         // Check user bookmark and user rating if authenticated
         let isBookmarked = false;
         let userRating = 0;
 
         if (req.user) {
-            const bookmarkCheck = db.prepare('SELECT id FROM bookmarks WHERE article_id = ? AND user_id = ?').get(articleId, req.user.id);
-            isBookmarked = Boolean(bookmarkCheck);
+            const [bookmarkCheck] = await db.query('SELECT id FROM bookmarks WHERE article_id = ? AND user_id = ?', [articleId, req.user.id]);
+            isBookmarked = bookmarkCheck.length > 0;
 
-            const ratingCheck = db.prepare('SELECT rating FROM ratings WHERE article_id = ? AND user_id = ?').get(articleId, req.user.id);
-            userRating = ratingCheck ? ratingCheck.rating : 0;
+            const [ratingCheck] = await db.query('SELECT rating FROM ratings WHERE article_id = ? AND user_id = ?', [articleId, req.user.id]);
+            userRating = ratingCheck.length > 0 ? ratingCheck[0].rating : 0;
         }
 
         const fullArticle = {
@@ -246,166 +249,176 @@ router.get('/:id', optionalAuth, (req, res) => {
 });
 
 // POST /api/articles – Admin create article with steps and faqs
-router.post('/', authenticateToken, requireAdmin, (req, res) => {
+router.post('/', authenticateToken, requireAdmin, async (req, res) => {
+    const connection = await db.getConnection();
     try {
         const { title, categoryId, categoryName, difficulty, description, readingTime, author, keywords, commands, steps, faqs, status } = req.body;
 
         if (!title || !description) {
+            connection.release();
             return res.status(400).json({ success: false, message: 'Title and description are required.' });
         }
 
         let catId = categoryId;
         if (!catId && categoryName) {
-            const cat = db.prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)').get(categoryName.trim());
-            catId = cat ? cat.id : 1;
+            const [cats] = await connection.query('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)', [categoryName.trim()]);
+            catId = cats.length > 0 ? cats[0].id : 1;
         }
 
         if (!catId) catId = 1;
 
-        const insertTransaction = db.transaction(() => {
-            const result = db.prepare(`
-                INSERT INTO articles (title, category_id, difficulty, description, reading_time, author, keywords, commands, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-                title.trim(),
-                catId,
-                difficulty || 'Beginner',
-                description.trim(),
-                readingTime || '5 min',
-                author || req.user.username,
-                JSON.stringify(keywords || []),
-                JSON.stringify(commands || []),
-                status || 'Published'
-            );
+        await connection.beginTransaction();
 
-            const articleId = result.lastInsertRowid;
+        const [result] = await connection.query(`
+            INSERT INTO articles (title, category_id, difficulty, description, reading_time, author, keywords, commands, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            title.trim(),
+            catId,
+            difficulty || 'Beginner',
+            description.trim(),
+            readingTime || '5 min',
+            author || req.user.username,
+            JSON.stringify(keywords || []),
+            JSON.stringify(commands || []),
+            status || 'Published'
+        ]);
 
-            if (steps && Array.isArray(steps)) {
-                const insertStep = db.prepare(`
+        const articleId = result.insertId;
+
+        if (steps && Array.isArray(steps)) {
+            for (let idx = 0; idx < steps.length; idx++) {
+                const s = steps[idx];
+                await connection.query(`
                     INSERT INTO article_steps (article_id, step_number, title, content, command)
                     VALUES (?, ?, ?, ?, ?)
-                `);
-                steps.forEach((s, idx) => {
-                    insertStep.run(articleId, idx + 1, s.title || '', s.content || '', s.command || null);
-                });
+                `, [articleId, idx + 1, s.title || '', s.content || '', s.command || null]);
             }
+        }
 
-            if (faqs && Array.isArray(faqs)) {
-                const insertFaq = db.prepare(`
+        if (faqs && Array.isArray(faqs)) {
+            for (const f of faqs) {
+                await connection.query(`
                     INSERT INTO article_faqs (article_id, question, answer)
                     VALUES (?, ?, ?)
-                `);
-                faqs.forEach(f => {
-                    insertFaq.run(articleId, f.question || '', f.answer || '');
-                });
+                `, [articleId, f.question || '', f.answer || '']);
             }
+        }
 
-            db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-                .run(req.user.id, '📄', `New article published: "${title}"`);
+        await connection.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            req.user.id, '📄', `New article published: "${title}"`
+        ]);
 
-            return articleId;
-        });
+        await connection.commit();
+        connection.release();
 
-        const newArticleId = insertTransaction();
-        return res.status(201).json({ success: true, message: 'Article created successfully.', id: newArticleId });
+        return res.status(201).json({ success: true, message: 'Article created successfully.', id: articleId });
     } catch (err) {
+        await connection.rollback();
+        connection.release();
         console.error('Error creating article:', err);
         return res.status(500).json({ success: false, message: 'Server error creating article.' });
     }
 });
 
 // PUT /api/articles/:id – Admin update article
-router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const connection = await db.getConnection();
     try {
         const articleId = parseInt(req.params.id);
         const { title, categoryId, categoryName, difficulty, description, readingTime, author, keywords, commands, status, steps, faqs } = req.body;
 
-        const existing = db.prepare('SELECT id FROM articles WHERE id = ?').get(articleId);
-        if (!existing) {
+        const [existingRows] = await connection.query('SELECT id FROM articles WHERE id = ?', [articleId]);
+        if (existingRows.length === 0) {
+            connection.release();
             return res.status(404).json({ success: false, message: 'Article not found.' });
         }
 
         let catId = categoryId;
         if (!catId && categoryName) {
-            const cat = db.prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)').get(categoryName.trim());
-            if (cat) catId = cat.id;
+            const [cats] = await connection.query('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)', [categoryName.trim()]);
+            if (cats.length > 0) catId = cats[0].id;
         }
 
-        const updateTransaction = db.transaction(() => {
-            db.prepare(`
-                UPDATE articles
-                SET title = COALESCE(?, title),
-                    category_id = COALESCE(?, category_id),
-                    difficulty = COALESCE(?, difficulty),
-                    description = COALESCE(?, description),
-                    reading_time = COALESCE(?, reading_time),
-                    author = COALESCE(?, author),
-                    keywords = COALESCE(?, keywords),
-                    commands = COALESCE(?, commands),
-                    status = COALESCE(?, status),
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            `).run(
-                title !== undefined ? title.trim() : null,
-                catId !== undefined ? catId : null,
-                difficulty !== undefined ? difficulty : null,
-                description !== undefined ? description.trim() : null,
-                readingTime !== undefined ? readingTime : null,
-                author !== undefined ? author : null,
-                keywords !== undefined ? JSON.stringify(keywords) : null,
-                commands !== undefined ? JSON.stringify(commands) : null,
-                status !== undefined ? status : null,
-                articleId
-            );
+        await connection.beginTransaction();
 
-            if (steps && Array.isArray(steps)) {
-                db.prepare('DELETE FROM article_steps WHERE article_id = ?').run(articleId);
-                const insertStep = db.prepare(`
+        await connection.query(`
+            UPDATE articles
+            SET title = COALESCE(?, title),
+                category_id = COALESCE(?, category_id),
+                difficulty = COALESCE(?, difficulty),
+                description = COALESCE(?, description),
+                reading_time = COALESCE(?, reading_time),
+                author = COALESCE(?, author),
+                keywords = COALESCE(?, keywords),
+                commands = COALESCE(?, commands),
+                status = COALESCE(?, status)
+            WHERE id = ?
+        `, [
+            title !== undefined ? title.trim() : null,
+            catId !== undefined ? catId : null,
+            difficulty !== undefined ? difficulty : null,
+            description !== undefined ? description.trim() : null,
+            readingTime !== undefined ? readingTime : null,
+            author !== undefined ? author : null,
+            keywords !== undefined ? JSON.stringify(keywords) : null,
+            commands !== undefined ? JSON.stringify(commands) : null,
+            status !== undefined ? status : null,
+            articleId
+        ]);
+
+        if (steps && Array.isArray(steps)) {
+            await connection.query('DELETE FROM article_steps WHERE article_id = ?', [articleId]);
+            for (let idx = 0; idx < steps.length; idx++) {
+                const s = steps[idx];
+                await connection.query(`
                     INSERT INTO article_steps (article_id, step_number, title, content, command)
                     VALUES (?, ?, ?, ?, ?)
-                `);
-                steps.forEach((s, idx) => {
-                    insertStep.run(articleId, idx + 1, s.title || '', s.content || '', s.command || null);
-                });
+                `, [articleId, idx + 1, s.title || '', s.content || '', s.command || null]);
             }
+        }
 
-            if (faqs && Array.isArray(faqs)) {
-                db.prepare('DELETE FROM article_faqs WHERE article_id = ?').run(articleId);
-                const insertFaq = db.prepare(`
+        if (faqs && Array.isArray(faqs)) {
+            await connection.query('DELETE FROM article_faqs WHERE article_id = ?', [articleId]);
+            for (const f of faqs) {
+                await connection.query(`
                     INSERT INTO article_faqs (article_id, question, answer)
                     VALUES (?, ?, ?)
-                `);
-                faqs.forEach(f => {
-                    insertFaq.run(articleId, f.question || '', f.answer || '');
-                });
+                `, [articleId, f.question || '', f.answer || '']);
             }
+        }
 
-            db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-                .run(req.user.id, '✏️', `Article #${articleId} updated: "${title || 'Article'}"`);
-        });
+        await connection.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            req.user.id, '✏️', `Article #${articleId} updated: "${title || 'Article'}"`
+        ]);
 
-        updateTransaction();
+        await connection.commit();
+        connection.release();
+
         return res.json({ success: true, message: 'Article updated successfully.' });
     } catch (err) {
+        await connection.rollback();
+        connection.release();
         console.error('Error updating article:', err);
         return res.status(500).json({ success: false, message: 'Server error updating article.' });
     }
 });
 
 // DELETE /api/articles/:id – Admin delete article
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const articleId = parseInt(req.params.id);
-        const article = db.prepare('SELECT title FROM articles WHERE id = ?').get(articleId);
+        const [articles] = await db.query('SELECT title FROM articles WHERE id = ?', [articleId]);
 
-        if (!article) {
+        if (articles.length === 0) {
             return res.status(404).json({ success: false, message: 'Article not found.' });
         }
 
-        db.prepare('DELETE FROM articles WHERE id = ?').run(articleId);
+        await db.query('DELETE FROM articles WHERE id = ?', [articleId]);
 
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(req.user.id, '🗑️', `Article #${articleId} deleted: "${article.title}"`);
+        await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            req.user.id, '🗑️', `Article #${articleId} deleted: "${articles[0].title}"`
+        ]);
 
         return res.json({ success: true, message: 'Article deleted successfully.' });
     } catch (err) {
@@ -415,33 +428,30 @@ router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // POST /api/articles/:id/view – Record article as recently viewed
-router.post('/:id/view', authenticateToken, (req, res) => {
+router.post('/:id/view', authenticateToken, async (req, res) => {
     try {
         const articleId = parseInt(req.params.id);
         
-        const article = db.prepare('SELECT title FROM articles WHERE id = ?').get(articleId);
-        if (!article) {
+        const [articles] = await db.query('SELECT title FROM articles WHERE id = ?', [articleId]);
+        if (articles.length === 0) {
             return res.status(404).json({ success: false, message: 'Article not found.' });
         }
 
-        db.prepare(`
+        await db.query(`
             INSERT INTO recently_viewed_articles (user_id, article_id)
             VALUES (?, ?)
-            ON CONFLICT(user_id, article_id) DO UPDATE SET viewed_at = CURRENT_TIMESTAMP
-        `).run(req.user.id, articleId);
+            ON DUPLICATE KEY UPDATE viewed_at = CURRENT_TIMESTAMP
+        `, [req.user.id, articleId]);
 
-        // Also log this in audit_logs to show up in My Activity
-        // We can do an upsert-like logic, or just a simple insert, but to avoid spamming the activity feed,
-        // we might only log if it's the first time today, but a simple insert is fine for now, 
-        // or check if they viewed it in the last hour to prevent spam.
-        const recentViewLog = db.prepare(`
+        const [recentViewLogs] = await db.query(`
             SELECT id FROM audit_logs 
-            WHERE user_id = ? AND icon = '📖' AND message LIKE ? AND created_at >= datetime('now', '-1 hour')
-        `).get(req.user.id, `Viewed "${article.title}"%`);
+            WHERE user_id = ? AND icon = '📖' AND message LIKE ? AND created_at >= NOW() - INTERVAL 1 HOUR
+        `, [req.user.id, `Viewed "${articles[0].title}"%`]);
 
-        if (!recentViewLog) {
-            db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-                .run(req.user.id, '📖', `Viewed "${article.title}"`);
+        if (recentViewLogs.length === 0) {
+            await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+                req.user.id, '📖', `Viewed "${articles[0].title}"`
+            ]);
         }
 
         return res.json({ success: true, message: 'View recorded.' });
@@ -452,7 +462,7 @@ router.post('/:id/view', authenticateToken, (req, res) => {
 });
 
 // POST /api/articles/:id/progress – Record reading progress
-router.post('/:id/progress', authenticateToken, (req, res) => {
+router.post('/:id/progress', authenticateToken, async (req, res) => {
     try {
         const articleId = parseInt(req.params.id);
         let { percent } = req.body;
@@ -462,16 +472,16 @@ router.post('/:id/progress', authenticateToken, (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid progress percent.' });
         }
 
-        const article = db.prepare('SELECT id FROM articles WHERE id = ?').get(articleId);
-        if (!article) {
+        const [articles] = await db.query('SELECT id FROM articles WHERE id = ?', [articleId]);
+        if (articles.length === 0) {
             return res.status(404).json({ success: false, message: 'Article not found.' });
         }
 
-        db.prepare(`
+        await db.query(`
             INSERT INTO article_reading_progress (user_id, article_id, progress_percent)
             VALUES (?, ?, ?)
-            ON CONFLICT(user_id, article_id) DO UPDATE SET progress_percent = excluded.progress_percent, updated_at = CURRENT_TIMESTAMP
-        `).run(req.user.id, articleId, percent);
+            ON DUPLICATE KEY UPDATE progress_percent = VALUES(progress_percent)
+        `, [req.user.id, articleId, percent]);
 
         return res.json({ success: true, message: 'Progress saved.' });
     } catch (err) {

@@ -8,7 +8,7 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/categories – Get all categories with dynamic guide count
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const query = `
             SELECT 
@@ -23,7 +23,7 @@ router.get('/', (req, res) => {
             GROUP BY c.id
             ORDER BY c.id ASC
         `;
-        const categories = db.prepare(query).all();
+        const [categories] = await db.query(query);
         return res.json({ success: true, count: categories.length, data: categories });
     } catch (err) {
         console.error('Error fetching categories:', err);
@@ -32,21 +32,22 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/categories/:id – Get single category with its articles
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const categoryId = parseInt(req.params.id);
-        const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(categoryId);
+        const [categories] = await db.query('SELECT * FROM categories WHERE id = ?', [categoryId]);
 
-        if (!category) {
+        if (categories.length === 0) {
             return res.status(404).json({ success: false, message: 'Category not found.' });
         }
+        const category = categories[0];
 
-        const articles = db.prepare(`
+        const [articles] = await db.query(`
             SELECT id, title, difficulty, description, reading_time, author, status, created_at 
             FROM articles 
             WHERE category_id = ? AND status = 'Published'
             ORDER BY id ASC
-        `).all(categoryId);
+        `, [categoryId]);
 
         return res.json({
             success: true,
@@ -63,27 +64,29 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/categories – Admin create category
-router.post('/', authenticateToken, requireAdmin, (req, res) => {
+router.post('/', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const { name, icon, description } = req.body;
         if (!name) {
             return res.status(400).json({ success: false, message: 'Category name is required.' });
         }
 
-        const existing = db.prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)').get(name.trim());
-        if (existing) {
+        const [existing] = await db.query('SELECT id FROM categories WHERE LOWER(name) = LOWER(?)', [name.trim()]);
+        if (existing.length > 0) {
             return res.status(409).json({ success: false, message: 'Category already exists.' });
         }
 
-        const result = db.prepare(`
+        const [result] = await db.query(`
             INSERT INTO categories (name, icon, description)
             VALUES (?, ?, ?)
-        `).run(name.trim(), icon || '📁', description ? description.trim() : '');
+        `, [name.trim(), icon || '📁', description ? description.trim() : '']);
 
-        const newCategory = db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid);
+        const [newCategories] = await db.query('SELECT * FROM categories WHERE id = ?', [result.insertId]);
+        const newCategory = newCategories[0];
 
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(req.user.id, '📁', `New category created: "${newCategory.name}"`);
+        await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            req.user.id, '📁', `New category created: "${newCategory.name}"`
+        ]);
 
         return res.status(201).json({ success: true, message: 'Category created successfully.', data: newCategory });
     } catch (err) {
@@ -93,40 +96,42 @@ router.post('/', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // PUT /api/categories/:id – Admin update category
-router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const categoryId = parseInt(req.params.id);
         const { name, icon, description } = req.body;
 
-        const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(categoryId);
-        if (!category) {
+        const [categories] = await db.query('SELECT * FROM categories WHERE id = ?', [categoryId]);
+        if (categories.length === 0) {
             return res.status(404).json({ success: false, message: 'Category not found.' });
         }
 
         if (name !== undefined) {
-            const existing = db.prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND id != ?').get(name.trim(), categoryId);
-            if (existing) {
+            const [existing] = await db.query('SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND id != ?', [name.trim(), categoryId]);
+            if (existing.length > 0) {
                 return res.status(409).json({ success: false, message: 'Category name already exists.' });
             }
         }
 
-        db.prepare(`
+        await db.query(`
             UPDATE categories 
             SET name = COALESCE(?, name),
                 icon = COALESCE(?, icon),
                 description = COALESCE(?, description)
             WHERE id = ?
-        `).run(
+        `, [
             name !== undefined ? name.trim() : null,
             icon !== undefined ? icon : null,
             description !== undefined ? description.trim() : null,
             categoryId
-        );
+        ]);
 
-        const updatedCategory = db.prepare('SELECT * FROM categories WHERE id = ?').get(categoryId);
+        const [updatedCategories] = await db.query('SELECT * FROM categories WHERE id = ?', [categoryId]);
+        const updatedCategory = updatedCategories[0];
 
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(req.user.id, '✏️', `Category #${categoryId} updated: "${updatedCategory.name}"`);
+        await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            req.user.id, '✏️', `Category #${categoryId} updated: "${updatedCategory.name}"`
+        ]);
 
         return res.json({ success: true, message: 'Category updated successfully.', data: updatedCategory });
     } catch (err) {
@@ -136,24 +141,28 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // DELETE /api/categories/:id – Admin delete category
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const categoryId = parseInt(req.params.id);
-        const category = db.prepare('SELECT * FROM categories WHERE id = ?').get(categoryId);
+        const [categories] = await db.query('SELECT * FROM categories WHERE id = ?', [categoryId]);
 
-        if (!category) {
+        if (categories.length === 0) {
             return res.status(404).json({ success: false, message: 'Category not found.' });
         }
+        const category = categories[0];
 
-        const articleCount = db.prepare('SELECT COUNT(*) as count FROM articles WHERE category_id = ?').get(categoryId).count;
+        const [counts] = await db.query('SELECT COUNT(*) as count FROM articles WHERE category_id = ?', [categoryId]);
+        const articleCount = counts[0].count;
+
         if (articleCount > 0) {
             return res.status(400).json({ success: false, message: 'Cannot delete category because it is currently used by ' + articleCount + ' article(s).' });
         }
 
-        db.prepare('DELETE FROM categories WHERE id = ?').run(categoryId);
+        await db.query('DELETE FROM categories WHERE id = ?', [categoryId]);
 
-        db.prepare('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)')
-            .run(req.user.id, '🗑️', `Category deleted: "${category.name}"`);
+        await db.query('INSERT INTO audit_logs (user_id, icon, message) VALUES (?, ?, ?)', [
+            req.user.id, '🗑️', `Category deleted: "${category.name}"`
+        ]);
 
         return res.json({ success: true, message: 'Category deleted successfully.' });
     } catch (err) {
