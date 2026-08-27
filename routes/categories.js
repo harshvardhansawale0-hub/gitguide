@@ -103,6 +103,13 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
             return res.status(404).json({ success: false, message: 'Category not found.' });
         }
 
+        if (name !== undefined) {
+            const existing = db.prepare('SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND id != ?').get(name.trim(), categoryId);
+            if (existing) {
+                return res.status(409).json({ success: false, message: 'Category name already exists.' });
+            }
+        }
+
         db.prepare(`
             UPDATE categories 
             SET name = COALESCE(?, name),
@@ -136,6 +143,11 @@ router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
 
         if (!category) {
             return res.status(404).json({ success: false, message: 'Category not found.' });
+        }
+
+        const articleCount = db.prepare('SELECT COUNT(*) as count FROM articles WHERE category_id = ?').get(categoryId).count;
+        if (articleCount > 0) {
+            return res.status(400).json({ success: false, message: 'Cannot delete category because it is currently used by ' + articleCount + ' article(s).' });
         }
 
         db.prepare('DELETE FROM categories WHERE id = ?').run(categoryId);

@@ -267,10 +267,38 @@ function renderCategoryTable() {
         html += '  <td data-label="Category"><strong>' + escapeHtml(cat.name) + '</strong></td>';
         html += '  <td data-label="Description">' + escapeHtml(cat.description || '') + '</td>';
         html += '  <td data-label="Guides"><span class="badge badge-category">' + (cat.guideCount || 0) + ' guides</span></td>';
+        html += '  <td data-label="Actions" style="text-align:right;">';
+        html += '    <div class="table-actions" style="justify-content:flex-end;">';
+        html += '      <button class="btn btn-secondary btn-sm" onclick="openCategoryModal(' + cat.id + ')">✏️ Edit</button>';
+        html += '      <button class="btn btn-danger btn-sm" onclick="deleteCategory(' + cat.id + ', \'' + escapeHtml(cat.name).replace(/'/g, "\\'") + '\')">🗑️ Delete</button>';
+        html += '    </div>';
+        html += '  </td>';
         html += '</tr>';
     });
 
     tbody.innerHTML = html;
+}
+
+// ---- DELETE CATEGORY ----
+async function deleteCategory(categoryId, categoryName) {
+    if (!confirm('Are you sure you want to delete the category: "' + categoryName + '"?')) return;
+
+    if (typeof API !== 'undefined' && API.categories && API.getToken()) {
+        try {
+            var res = await API.categories.delete(categoryId);
+            if (res && res.success) {
+                showToast(res.message, 'success');
+                dashboardCategories = dashboardCategories.filter(function (c) { return c.id !== categoryId; });
+                renderCategoryTable();
+                renderStats();
+            } else {
+                showToast(res ? res.message : 'Error deleting category.', 'error');
+            }
+        } catch (err) {
+            console.error('Error deleting category:', err);
+            showToast('Server error while deleting category.', 'error');
+        }
+    }
 }
 
 // ---- RENDER ALL COMMENTS ----
@@ -638,6 +666,7 @@ async function saveArticle() {
     await loadAllDashboardData();
     renderStats();
     renderArticleTable();
+    renderCategoryTable();
     renderAuditLog();
     renderRecentActivity();
 
@@ -656,12 +685,19 @@ async function deleteArticle(articleId) {
         var res = await API.articles.delete(articleId);
         if (res.success) {
             showToast('Article deleted from database.', 'success');
+        } else {
+            showToast(res.message || 'Error deleting article.', 'error');
+            return;
         }
+    } else {
+        // Fallback for offline mode
+        dashboardArticles = dashboardArticles.filter(function (a) { return a.id !== articleId; });
     }
 
-    dashboardArticles = dashboardArticles.filter(function (a) { return a.id !== articleId; });
+    await loadAllDashboardData();
     renderStats();
     renderArticleTable();
+    renderCategoryTable();
     renderAuditLog();
     renderRecentActivity();
 }
@@ -681,6 +717,137 @@ async function deleteComment(commentId) {
     dashboardComments = dashboardComments.filter(function (c) { return c.id !== commentId; });
     renderAllComments();
     renderStats();
+}
+
+// ---- CATEGORY MANAGEMENT ----
+
+async function openCategoryModal(categoryId = null) {
+    document.getElementById('categoryId').value = categoryId || '';
+    
+    var articlesSection = document.getElementById('categoryArticlesSection');
+    var articlesList = document.getElementById('categoryArticlesList');
+    var articleCountSpan = document.getElementById('categoryArticleCount');
+
+    // Reset articles section
+    articlesSection.style.display = 'none';
+    articlesList.innerHTML = '';
+    articleCountSpan.textContent = '0';
+
+    if (categoryId) {
+        var cat = dashboardCategories.find(function (c) { return c.id === categoryId; });
+        if (cat) {
+            document.getElementById('categoryModalTitle').textContent = 'Edit Category';
+            document.getElementById('categoryName').value = cat.name || '';
+            document.getElementById('categoryIcon').value = cat.icon || '';
+            document.getElementById('categoryDescription').value = cat.description || '';
+        }
+        
+        // Fetch full category details including articles
+        if (typeof API !== 'undefined' && API.categories) {
+            try {
+                var res = await API.categories.getById(categoryId);
+                if (res && res.success && res.data) {
+                    var fullCat = res.data;
+                    var articles = fullCat.articles || [];
+                    
+                    articlesSection.style.display = 'block';
+                    articleCountSpan.textContent = articles.length;
+                    
+                    if (articles.length === 0) {
+                        articlesList.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; padding:0.5rem 0;">No articles in this category.</div>';
+                    } else {
+                        var html = '';
+                        articles.forEach(function(art, idx) {
+                            var diffClass = getDifficultyClass ? getDifficultyClass(art.difficulty) : 'badge-beginner';
+                            var readingTime = art.reading_time ? art.reading_time + ' min' : 'Unknown time';
+                            var diff = art.difficulty || 'Beginner';
+                            
+                            html += '<div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; transition: all 0.2s ease; display: flex; flex-direction: column; gap: 0.4rem;" onmouseover="this.style.background=\'rgba(255,255,255,0.04)\'; this.style.borderColor=\'var(--primary)\';" onmouseout="this.style.background=\'rgba(255,255,255,0.02)\'; this.style.borderColor=\'var(--border)\';">';
+                            html += '  <div style="font-weight: 600; font-size: 0.95rem; color: var(--text); display: flex; align-items: flex-start; gap: 0.5rem;"><span style="color: var(--text-muted); font-size: 0.85rem; padding-top: 0.1rem;">' + (idx + 1) + '.</span> <span>' + escapeHtml(art.title) + '</span></div>';
+                            html += '  <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; margin-left: 1.25rem;">';
+                            html += '    <span class="badge ' + diffClass + '" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 4px;">' + escapeHtml(diff) + '</span>';
+                            html += '    <span style="opacity: 0.5;">•</span> <span>' + escapeHtml(readingTime) + '</span>';
+                            html += '  </div>';
+                            html += '</div>';
+                        });
+                        articlesList.innerHTML = html;
+                    }
+                }
+            } catch(e) {
+                console.error('Error fetching category articles:', e);
+            }
+        }
+    } else {
+        document.getElementById('categoryModalTitle').textContent = 'Add New Category';
+        document.getElementById('categoryName').value = '';
+        document.getElementById('categoryIcon').value = '';
+        document.getElementById('categoryDescription').value = '';
+    }
+    
+    document.getElementById('categoryModalOverlay').classList.add('active');
+}
+
+function closeCategoryModal() {
+    document.getElementById('categoryModalOverlay').classList.remove('active');
+}
+
+async function saveCategory(event) {
+    event.preventDefault();
+    
+    var btn = document.getElementById('saveCategoryBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    var categoryId = document.getElementById('categoryId').value;
+    var data = {
+        name: document.getElementById('categoryName').value.trim(),
+        icon: document.getElementById('categoryIcon').value.trim(),
+        description: document.getElementById('categoryDescription').value.trim()
+    };
+    
+    try {
+        var res;
+        if (categoryId) {
+            res = await API.categories.update(categoryId, data);
+        } else {
+            res = await API.categories.create(data);
+        }
+        
+        if (res && res.success) {
+            showToast(res.message, 'success');
+            closeCategoryModal();
+            
+            // Re-fetch categories to update table
+            var fetchRes = await API.categories.getAll();
+            if (fetchRes && fetchRes.success) {
+                dashboardCategories = fetchRes.data;
+                renderCategoryTable();
+                renderStats(); // Stats depend on dashboardCategories count if computed locally, or we can just fetch stats
+            } else {
+                // Manual update if fetch fails
+                if (categoryId) {
+                    var idx = dashboardCategories.findIndex(function(c) { return c.id == categoryId; });
+                    if (idx > -1) {
+                        dashboardCategories[idx].name = res.data.name;
+                        dashboardCategories[idx].icon = res.data.icon;
+                        dashboardCategories[idx].description = res.data.description;
+                    }
+                } else {
+                    res.data.guideCount = 0;
+                    dashboardCategories.push(res.data);
+                }
+                renderCategoryTable();
+            }
+        } else {
+            showToast(res ? res.message : 'Error saving category.', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Server error while saving category.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Category';
+    }
 }
 
 function escapeHtml(text) {
