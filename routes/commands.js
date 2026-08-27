@@ -4,7 +4,7 @@
 const express = require('express');
 const Groq = require('groq-sdk');
 const db = require('../config/db');
-const { optionalAuth } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -233,7 +233,7 @@ router.get('/', (req, res) => {
 // ============================================================
 // 2. POST /api/commands/synthesize – Backend command safety analyzer & formatter
 // ============================================================
-router.post('/synthesize', (req, res) => {
+router.post('/synthesize', authenticateToken, (req, res) => {
     try {
         const { commandName, selectedFlags = [], argument = '' } = req.body;
 
@@ -305,7 +305,7 @@ router.post('/synthesize', (req, res) => {
 // ============================================================
 // 3. POST /api/commands/ai-synthesize – Natural Language to Git Command (Groq AI)
 // ============================================================
-router.post('/ai-synthesize', optionalAuth, async (req, res) => {
+router.post('/ai-synthesize', authenticateToken, async (req, res) => {
     try {
         const { prompt } = req.body;
 
@@ -385,7 +385,7 @@ router.post('/ai-synthesize', optionalAuth, async (req, res) => {
 // ============================================================
 // 4. POST /api/commands/ai-explain – Deep Command Breakdown & Risk Audit (Groq AI)
 // ============================================================
-router.post('/ai-explain', optionalAuth, async (req, res) => {
+router.post('/ai-explain', authenticateToken, async (req, res) => {
     try {
         const { command } = req.body;
 

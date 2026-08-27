@@ -12,6 +12,18 @@ var currentSynthesizedData = null;
 // ---- INITIALIZE COMMANDS PAGE ----
 
 document.addEventListener('DOMContentLoaded', async function () {
+    var user = null;
+    if (typeof API !== 'undefined' && API.getCurrentUser) {
+        user = API.getCurrentUser();
+    } else if (typeof getCurrentUser === 'function') {
+        user = getCurrentUser();
+    }
+
+    if (!user) {
+        window.location.href = 'login.html';
+        return;
+    }
+
     initTabs();
     initAiSynthesizer();
     await populateCommandDropdown();
