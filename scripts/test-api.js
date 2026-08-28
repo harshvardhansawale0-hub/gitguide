@@ -147,7 +147,7 @@ async function runTests() {
             commandName: 'git reset',
             selectedFlags: [{ flag: '--hard' }],
             argument: 'HEAD~1'
-        });
+        }, authToken);
         if (res.status !== 200 || !res.data.data.isDangerous || res.data.data.command !== 'git reset --hard HEAD~1') {
             throw new Error(`Synthesis failed: ${JSON.stringify(res.data)}`);
         }

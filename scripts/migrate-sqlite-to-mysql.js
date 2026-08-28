@@ -1,159 +1,186 @@
+// ============================================================
+// GitGuide – Blazing-Fast SQLite to MySQL Database Migration
+// ============================================================
+const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
-const db = require('../config/db'); // MySQL
+const { execSync } = require('child_process');
+const db = require('../config/db');
 
-async function migrateData() {
-    console.log('🚀 Starting data migration from SQLite to MySQL...');
+// Order of insertion respecting relational dependencies
+const TABLE_ORDER = [
+    'users',
+    'categories',
+    'articles',
+    'article_steps',
+    'article_faqs',
+    'article_media',
+    'comments',
+    'ratings',
+    'bookmarks',
+    'git_commands',
+    'error_patterns',
+    'audit_logs',
+    'recently_viewed_articles',
+    'article_reading_progress'
+];
 
-    const sqlitePath = path.resolve(__dirname, '..', 'gitguide.db');
-    let sqliteDb;
+async function runMigration() {
+    console.log('🚀 Starting SQLite to MySQL Database Migration...\n');
+
+    // 1. Export SQLite data to JSON via Python
+    const exportScript = path.resolve(__dirname, 'export_sqlite.py');
+    const dumpPath = path.resolve(__dirname, 'sqlite_dump.json');
+
+    console.log('📦 Step 1: Extracting SQLite database (gitguide.db)...');
     try {
-        sqliteDb = new Database(sqlitePath, { readonly: true });
-        console.log(`✅ Connected to SQLite database at ${sqlitePath}`);
-    } catch (err) {
-        console.error('❌ Failed to open SQLite database:', err.message);
-        console.error('Make sure gitguide.db exists in the project root.');
+        execSync(`python "${exportScript}"`, { stdio: 'inherit' });
+    } catch (e) {
+        console.error('❌ Failed to extract SQLite database:', e.message);
         process.exit(1);
     }
 
+    if (!fs.existsSync(dumpPath)) {
+        console.error('❌ Dump file not found at:', dumpPath);
+        process.exit(1);
+    }
+
+    const dump = JSON.parse(fs.readFileSync(dumpPath, 'utf8'));
+    console.log('✅ SQLite data extracted successfully.\n');
+
+    // 2. Connect to MySQL
+    console.log('🔌 Step 2: Connecting to MySQL database:', process.env.DB_NAME);
     const connection = await db.getConnection();
 
     try {
-        await connection.beginTransaction();
-        console.log('🧹 Clearing existing MySQL data...');
-        
+        // Disable foreign key checks for schema setup and data import
         await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-        const tables = [
-            'audit_logs', 'error_patterns', 'git_commands', 'bookmarks',
-            'ratings', 'comments', 'article_faqs', 'article_steps',
-            'article_media', 'recently_viewed_articles', 'article_reading_progress',
-            'articles', 'categories', 'users'
-        ];
-        
-        for (const table of tables) {
-            await connection.query(`TRUNCATE TABLE ${table}`);
+
+        // Ensure all tables exist in target MySQL database
+        console.log('🏗️  Ensuring all MySQL tables exist...');
+        const schemaPath = path.resolve(__dirname, '../mysql-schema.sql');
+        if (fs.existsSync(schemaPath)) {
+            let schemaSql = fs.readFileSync(schemaPath, 'utf8');
+            schemaSql = schemaSql.replace(/CREATE DATABASE[\s\S]*?;/i, '');
+            schemaSql = schemaSql.replace(/USE\s+[\w`]+;/gi, '');
+            schemaSql = schemaSql.replace(/--.*$/gm, '');
+
+            const statements = schemaSql
+                .split(';')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            for (const stmt of statements) {
+                try {
+                    await connection.query(stmt);
+                } catch (stmtErr) {
+                    if (!stmtErr.message.includes('Duplicate key name') && !stmtErr.message.includes('already exists')) {
+                        console.warn('  ⚠️ Schema notice:', stmtErr.message);
+                    }
+                }
+            }
         }
-        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+        console.log('✅ MySQL tables and indexes ready.\n');
 
-        // Helper to insert rows
-        const migrateTable = async (tableName, mysqlInsertQuery, columns, defaults = {}) => {
-            console.log(`📦 Migrating ${tableName}...`);
-            let rows = [];
-            try {
-                rows = sqliteDb.prepare(`SELECT * FROM ${tableName}`).all();
-            } catch (err) {
-                console.log(`   ⚠️ Table ${tableName} might not exist in SQLite or error reading it: ${err.message}`);
-                return;
-            }
+        await connection.beginTransaction();
+        console.log('🔒 Transaction started.');
 
+        // Clear existing MySQL tables in reverse order
+        console.log('🧹 Clearing existing records in MySQL...');
+        for (const table of [...TABLE_ORDER].reverse()) {
+            await connection.query(`TRUNCATE TABLE \`${table}\``);
+        }
+        console.log('✅ MySQL tables cleared.\n');
+
+        // 3. Migrate each table using bulk batching for maximum performance over network
+        console.log('📥 Step 3: Migrating tables from SQLite to MySQL (Bulk Optimized)...');
+        let totalMigratedRows = 0;
+
+        for (const tableName of TABLE_ORDER) {
+            const rows = dump[tableName] || [];
             if (rows.length === 0) {
-                console.log(`   ℹ️ No records found in ${tableName}.`);
-                return;
+                console.log(`  • ${tableName}: 0 rows (skipped)`);
+                continue;
             }
 
-            for (const row of rows) {
-                const values = columns.map(col => {
-                    const val = row[col];
-                    if ((val === undefined || val === null) && defaults[col] !== undefined) {
-                        return defaults[col];
+            const columns = Object.keys(rows[0]);
+            const columnNamesSql = columns.map(c => `\`${c}\``).join(', ');
+
+            // Prepare all row value arrays
+            const allValues = rows.map(row => {
+                return columns.map(col => {
+                    let val = row[col];
+                    if (val === undefined || val === null) {
+                        return null;
+                    }
+                    if (['keywords', 'commands', 'flags'].includes(col)) {
+                        if (typeof val === 'object') {
+                            return JSON.stringify(val);
+                        }
+                    }
+                    if (col === 'requires_arg') {
+                        return val ? 1 : 0;
                     }
                     return val;
                 });
-                try {
-                    await connection.query(mysqlInsertQuery, values);
-                } catch (err) {
-                    console.error(`   ❌ Error inserting into ${tableName}:`, err.message);
-                    console.error(`   Row data:`, row);
-                    throw err;
-                }
+            });
+
+            // Insert in chunks of 100
+            const CHUNK_SIZE = 100;
+            for (let i = 0; i < allValues.length; i += CHUNK_SIZE) {
+                const chunk = allValues.slice(i, i + CHUNK_SIZE);
+                const placeholders = chunk.map(() => `(${columns.map(() => '?').join(',')})`).join(',');
+                const flatValues = chunk.flat();
+                await connection.query(`INSERT INTO \`${tableName}\` (${columnNamesSql}) VALUES ${placeholders}`, flatValues);
             }
-            console.log(`   ✅ Migrated ${rows.length} records to ${tableName}.`);
-        };
 
-        await migrateTable('users', 
-            `INSERT INTO users (id, username, password_hash, role, name, contact, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            ['id', 'username', 'password_hash', 'role', 'name', 'contact', 'created_at'],
-            { role: 'user' }
-        );
+            console.log(`  ✅ ${tableName}: ${rows.length} rows migrated`);
+            totalMigratedRows += rows.length;
+        }
 
-        await migrateTable('categories', 
-            `INSERT INTO categories (id, name, icon, description, created_at) VALUES (?, ?, ?, ?, ?)`,
-            ['id', 'name', 'icon', 'description', 'created_at']
-        );
-
-        await migrateTable('articles', 
-            `INSERT INTO articles (id, title, category_id, difficulty, description, reading_time, author, keywords, commands, status, view_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            ['id', 'title', 'category_id', 'difficulty', 'description', 'reading_time', 'author', 'keywords', 'commands', 'status', 'view_count', 'created_at', 'updated_at'],
-            { difficulty: 'Beginner', reading_time: '5 min', author: 'GitGuide Team', status: 'Published', view_count: 0 }
-        );
-
-        await migrateTable('article_steps', 
-            `INSERT INTO article_steps (id, article_id, step_number, title, content, command) VALUES (?, ?, ?, ?, ?, ?)`,
-            ['id', 'article_id', 'step_number', 'title', 'content', 'command']
-        );
-
-        await migrateTable('article_faqs', 
-            `INSERT INTO article_faqs (id, article_id, question, answer) VALUES (?, ?, ?, ?)`,
-            ['id', 'article_id', 'question', 'answer']
-        );
-
-        await migrateTable('git_commands', 
-            `INSERT INTO git_commands (id, name, description, flags, requires_arg, arg_placeholder) VALUES (?, ?, ?, ?, ?, ?)`,
-            ['id', 'name', 'description', 'flags', 'requires_arg', 'arg_placeholder'],
-            { requires_arg: 0 }
-        );
-
-        await migrateTable('error_patterns', 
-            `INSERT INTO error_patterns (id, title, keywords, solution, article_id) VALUES (?, ?, ?, ?, ?)`,
-            ['id', 'title', 'keywords', 'solution', 'article_id']
-        );
-
-        await migrateTable('comments', 
-            `INSERT INTO comments (id, article_id, user_id, name, text, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-            ['id', 'article_id', 'user_id', 'name', 'text', 'created_at']
-        );
-
-        await migrateTable('ratings', 
-            `INSERT INTO ratings (id, article_id, user_id, rating, created_at) VALUES (?, ?, ?, ?, ?)`,
-            ['id', 'article_id', 'user_id', 'rating', 'created_at']
-        );
-
-        await migrateTable('bookmarks', 
-            `INSERT INTO bookmarks (id, article_id, user_id, created_at) VALUES (?, ?, ?, ?)`,
-            ['id', 'article_id', 'user_id', 'created_at']
-        );
-
-        await migrateTable('audit_logs', 
-            `INSERT INTO audit_logs (id, user_id, icon, message, created_at) VALUES (?, ?, ?, ?, ?)`,
-            ['id', 'user_id', 'icon', 'message', 'created_at']
-        );
-
-        await migrateTable('article_media', 
-            `INSERT INTO article_media (id, article_id, media_type, media_url, file_name, mime_type, file_size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            ['id', 'article_id', 'media_type', 'media_url', 'file_name', 'mime_type', 'file_size', 'created_at']
-        );
-
-        await migrateTable('article_reading_progress', 
-            `INSERT INTO article_reading_progress (id, article_id, user_id, progress_percent, updated_at) VALUES (?, ?, ?, ?, ?)`,
-            ['id', 'article_id', 'user_id', 'progress_percent', 'last_read_at'],
-            { progress_percent: 0 }
-        );
-
-        await migrateTable('recently_viewed_articles', 
-            `INSERT INTO recently_viewed_articles (id, user_id, article_id, viewed_at) VALUES (?, ?, ?, ?)`,
-            ['id', 'user_id', 'article_id', 'viewed_at']
-        );
+        // Re-enable foreign key checks
+        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
         await connection.commit();
-        console.log('🎉 Data migration completed successfully!');
+        console.log('\n🎉 Migration committed successfully!');
+        console.log(`📊 Total rows migrated: ${totalMigratedRows}\n`);
+
+        // 4. Verification Step
+        console.log('🔍 Step 4: Verifying MySQL row counts vs SQLite:');
+        console.log('---------------------------------------------------------');
+        console.log(
+            'Table Name'.padEnd(28) + 
+            'SQLite Count'.padEnd(15) + 
+            'MySQL Count'.padEnd(15) + 
+            'Status'
+        );
+        console.log('---------------------------------------------------------');
+
+        for (const tableName of TABLE_ORDER) {
+            const sqliteCount = (dump[tableName] || []).length;
+            const [myRows] = await connection.query(`SELECT COUNT(*) AS count FROM \`${tableName}\``);
+            const mysqlCount = myRows[0].count;
+            const status = sqliteCount === mysqlCount ? '✅ MATCH' : '❌ MISMATCH';
+
+            console.log(
+                tableName.padEnd(28) + 
+                String(sqliteCount).padEnd(15) + 
+                String(mysqlCount).padEnd(15) + 
+                status
+            );
+        }
+        console.log('---------------------------------------------------------');
+
     } catch (err) {
         await connection.rollback();
-        console.error('❌ Data migration failed:', err);
+        console.error('❌ Migration failed! Transaction rolled back:', err);
+        process.exit(1);
     } finally {
-        sqliteDb.close();
         connection.release();
         process.exit(0);
     }
 }
 
-migrateData();
+runMigration().catch(err => {
+    console.error('Unexpected migration error:', err);
+    process.exit(1);
+});

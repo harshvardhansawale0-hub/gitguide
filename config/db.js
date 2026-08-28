@@ -6,13 +6,13 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-// Create connection pool
-const pool = mysql.createPool({
+// Create connection pool configuration
+const poolConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'gitguide',
-    port: process.env.DB_PORT || 3306,
+    port: parseInt(process.env.DB_PORT, 10) || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     maxIdle: 10,
@@ -20,7 +20,17 @@ const pool = mysql.createPool({
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0
-});
+};
+
+// Enable SSL if explicitly configured or if connecting to any remote host (e.g. Aiven, AWS RDS, TiDB)
+const isRemoteHost = process.env.DB_HOST && !['localhost', '127.0.0.1', '::1'].includes(process.env.DB_HOST.toLowerCase());
+if (process.env.DB_SSL === 'true' || isRemoteHost) {
+    poolConfig.ssl = {
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' ? true : false
+    };
+}
+
+const pool = mysql.createPool(poolConfig);
 
 // Test the connection
 pool.getConnection()

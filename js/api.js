@@ -15,6 +15,9 @@
 
     var API_BASE = (function () {
         if (typeof window !== 'undefined') {
+            if (window.GITGUIDE_API_URL) {
+                return window.GITGUIDE_API_URL;
+            }
             if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
                 return window.location.origin + '/api';
             }

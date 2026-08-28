@@ -1,6 +1,6 @@
 # GitGuide – Full-Stack Git & GitHub Knowledge Center
 
-A production-ready full-stack web application designed for developers facing Git and GitHub challenges. GitGuide offers searchable step-by-step guides, interactive CLI command synthesizer with safety warnings, intelligent terminal error analyzer, bookmarking, 5-star ratings, community comments, and a comprehensive Admin & User Dashboard.
+A production-grade full-stack web application designed for developers facing Git and GitHub challenges. GitGuide offers searchable step-by-step guides, an interactive CLI command synthesizer with safety warnings, an intelligent terminal error analyzer powered by Groq AI, bookmarking, 5-star ratings, community comments, media attachments, interactive chatbot assistant, and a comprehensive Admin & User Dashboard.
 
 ---
 
@@ -8,23 +8,25 @@ A production-ready full-stack web application designed for developers facing Git
 
 | Layer | Technology | Description |
 |---|---|---|
-| **Frontend** | HTML5, CSS3, Vanilla JavaScript (ES6+) | Responsive editorial design, dark/light theme, micro-animations, glassmorphism |
-| **Backend Server** | Node.js & Express.js (v5) | High-performance RESTful API, CORS enabled, static file server |
-| **Database** | SQLite (via `better-sqlite3`) & MySQL (`schema.sql`) | Relational DBMS with foreign key constraints, indexes, and WAL journal mode |
-| **Authentication** | JSON Web Tokens (JWT) & `bcryptjs` | 7-day signed tokens, role-based access control (`admin`, `user`), password complexity checks |
-| **API Client** | `js/api.js` | Centralized asynchronous fetch client with automatic auth headers & offline fallback |
+| **Frontend** | HTML5, CSS3, Vanilla JavaScript (ES6+) | Responsive editorial UI, Dark/Light mode, micro-animations, glassmorphism design |
+| **Backend Server** | Node.js & Express.js (v5) | High-performance RESTful API, CORS enabled, static asset hosting, centralized error handling |
+| **Database** | MySQL (8.0+ / HeatWave Compatible) | Relational DBMS using `mysql2/promise` connection pooling, InnoDB engine, foreign keys, cascades, indexes, and ACID transactions |
+| **AI Integration** | Groq SDK (Llama 3 models) | Natural language Git command synthesis, deep command explanation & safety audits, terminal error troubleshooting |
+| **Authentication** | JSON Web Tokens (JWT) & `bcryptjs` | 7-day signed Bearer tokens, Role-Based Access Control (`admin`, `user`), password complexity verification |
+| **API Client** | `js/api.js` | Centralized asynchronous fetch client with automatic auth token management & offline fallback |
 
 ---
 
-## 📋 Features
+## 📋 Key Features
 
-1. **Home Page**: Hero search bar with instant autocomplete, dynamic category cards with live guide counts, and trending articles feed.
-2. **Search & Filter Page**: Real-time filtering by keyword, topic category, and difficulty level (`Beginner`, `Intermediate`, `Advanced`).
-3. **Article Detail Page**: Step-by-step solutions with formatted bash commands, one-click copy buttons, user bookmarks, 5-star rating system, and community comments.
-4. **Groq AI Command Synthesizer**: Dual-mode intelligent CLI synthesizer translating plain-English natural language into precision Git commands (`POST /api/commands/ai-synthesize`), interactive flag combinators, syntax breakdowns, automated safety risk levels (`safe`, `caution`, `danger`), and copyable undo blueprints.
-5. **Error Log Analyzer**: Intelligent terminal error log analyzer using backend pattern matching and keyword relevance scoring to suggest precise solutions and guide links.
-6. **User Dashboard**: Personalized user area showcasing saved bookmarks, submitted comments, and account activity.
-7. **Admin Dashboard**: Full CRUD management for articles and categories, comment moderation, live KPI metrics (articles, users, ratings, comments), and audit log timeline.
+1. **Home Discovery**: Hero search bar with real-time suggestions, dynamic category cards with live guide counters, and trending articles feed.
+2. **Search & Filter Engine**: Multi-criteria search by keyword, topic category, difficulty level (`Beginner`, `Intermediate`, `Advanced`), and publication status.
+3. **Interactive Guide Reader**: Step-by-step instructions with one-click copyable bash commands, user bookmarks, 5-star rating system, frequently asked questions (FAQs), and community discussion threads.
+4. **Groq AI Command Synthesizer**: Dual-mode CLI builder translating natural English into precision Git commands (`POST /api/commands/ai-synthesize`), interactive flag selectors, automated risk levels (`safe`, `caution`, `danger`), and undo blueprints.
+5. **Terminal Error Analyzer**: Paste terminal error logs to receive pattern-matched diagnostic breakdowns and Groq AI-powered recovery solutions.
+6. **AI Assistant Chatbot**: Integrated floating AI chatbot for interactive Git queries and instant troubleshooting.
+7. **User Dashboard**: Dedicated user profile managing bookmarked guides, comment history, and account settings.
+8. **Admin Control Panel**: Complete CRUD management for articles and categories, comment moderation, audit log timeline, and live KPI metrics.
 
 ---
 
@@ -33,85 +35,132 @@ A production-ready full-stack web application designed for developers facing Git
 ```
 GitGuide/
 ├── server.js                   → Express.js application server & static file host
-├── .env                        → Environment configuration (PORT, JWT_SECRET, DB_PATH)
-├── package.json                → Project dependencies and scripts
-├── schema.sql                  → Relational DBMS SQL Schema (DDL & DML)
-├── gitguide.db                 → High-speed SQLite database (auto-generated)
+├── .env                        → Environment configuration (Port, JWT Secret, MySQL Credentials, Groq API Key)
+├── .env.example                → Example environment configuration template
+├── package.json                → Project dependencies and NPM scripts
+├── mysql-schema.sql            → Production MySQL relational database schema (DDL & DML)
+├── schema.sql                  → Relational DBMS schema reference
+├── check-db.js                 → MySQL connection & table integrity verification utility
 │
 ├── config/
-│   └── db.js                   → Database connection, WAL mode, foreign keys, table init
+│   └── db.js                   → MySQL connection pool (`mysql2/promise`) & keep-alive config
 │
 ├── middleware/
-│   └── auth.js                 → JWT verification, optional auth, and admin role guards
+│   └── auth.js                 → JWT verification, optional authentication, and admin role guards
 │
 ├── routes/
-│   ├── auth.js                 → POST /register, POST /login, GET /me
+│   ├── auth.js                 → POST /register, POST /login, GET /me, PUT /profile
 │   ├── categories.js           → GET, POST, PUT, DELETE /api/categories
 │   ├── articles.js             → GET /api/articles, /trending, /suggestions, CRUD
 │   ├── comments.js             → GET, POST /api/comments/article/:id, admin moderation
 │   ├── ratings.js              → GET, POST /api/ratings/:articleId
 │   ├── bookmarks.js            → GET, POST /api/bookmarks/toggle
-│   ├── commands.js             → GET /api/commands, POST /synthesize
+│   ├── commands.js             → GET /api/commands, POST /synthesize, AI synthesis & explain
 │   ├── troubleshooting.js      → GET /patterns, POST /api/troubleshooting/analyze
-│   └── dashboard.js            → GET /api/dashboard/stats, /audit-logs, /user
+│   ├── dashboard.js            → GET /api/dashboard/stats, /audit-logs, /user
+│   ├── chatbot.js              → POST /api/chatbot/message (Groq AI conversational helper)
+│   └── media.js                → POST /api/media/upload (Article media attachments)
 │
 ├── scripts/
-│   ├── seed.js                 → Automatic database seeder from data.js
-│   └── test-api.js             → Automated API test suite (13 endpoint tests)
+│   ├── seed.js                 → MySQL database seeder (populates categories, articles, commands, users)
+│   └── test-api.js             → Automated end-to-end API test suite (13 endpoint tests)
 │
 ├── css/
-│   └── style.css               → Editorial stylesheet, CSS variables, dark mode
+│   └── style.css               → Editorial stylesheet, design tokens, light/dark themes
 │
 ├── js/
 │   ├── api.js                  → Centralized frontend API client
-│   ├── auth.js                 → Authentication state & session management
-│   ├── data.js                 → Fallback data dataset
-│   ├── script.js               → Shared UI logic, theme toggle, toast notifications
+│   ├── auth.js                 → Authentication state & session manager
+│   ├── data.js                 → Default content dataset for seeder
+│   ├── script.js               → Shared UI logic, theme switcher, toast notifications
 │   ├── search.js               → Search filtering & skeleton loaders
-│   ├── article.js              → Article reader, rating & comments handler
-│   ├── commands.js             → CLI command synthesizer
-│   ├── troubleshooting.js      → Terminal error analyzer
+│   ├── article.js              → Article viewer, ratings, and comments handler
+│   ├── commands.js             → CLI command synthesizer & AI generator
+│   ├── troubleshooting.js      → Terminal error analyzer logic
 │   ├── dashboard.js            → Admin metrics, tables & CRUD operations
-│   └── user-dashboard.js       → User bookmarks and comment history
+│   └── user-dashboard.js       → User bookmarks and personal comment history
 │
 ├── index.html                  → Home page
-├── search.html                 → Search & discovery
+├── search.html                 → Search & discovery page
 ├── article.html                → Article detail view
 ├── commands.html               → Git command synthesizer
 ├── troubleshooting.html        → Terminal error analyzer
-├── dashboard.html              → Admin dashboard
-├── user-dashboard.html         → User dashboard
-├── login.html                  → User login
-└── register.html               → User registration
+├── dashboard.html              → Admin control panel
+├── user-dashboard.html         → User profile dashboard
+├── login.html                  → User authentication page
+└── register.html               → User registration page
 ```
 
 ---
 
-## 🚀 How to Run
+## ⚙️ Environment Configuration
+
+Create a `.env` file in the root directory (or copy from `.env.example`):
+
+```env
+PORT=5000
+NODE_ENV=development
+
+# Authentication
+JWT_SECRET=gitguide_super_secret_jwt_key_2026_dbms_production
+
+# Groq Cloud AI API Key
+GROQ_API_KEY=your_groq_api_key_here
+
+# MySQL Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=gitguide
+```
+
+---
+
+## 🚀 Step-by-Step Setup Guide
 
 ### 1. Install Dependencies
 ```bash
 npm install
 ```
 
-### 2. Seed the Database
-Populates the SQLite database with 8 categories, 24 comprehensive articles, 15 Git commands, 10 error patterns, and default test accounts:
+### 2. Set Up MySQL Database
+Ensure your local MySQL service (e.g. MySQL 8.0, XAMPP, or MySQL HeatWave) is running.
+
+Import the database schema using MySQL CLI or MySQL Workbench:
 ```bash
-npm run seed
+# Using MySQL CLI
+mysql -u root -p < mysql-schema.sql
+```
+*Alternatively, you can open `mysql-schema.sql` in MySQL Workbench and execute the script.*
+
+### 3. Seed Initial Content
+Populates the database with 8 categories, 24 comprehensive articles with 110 steps, 15 Git commands, 10 error patterns, and default test accounts:
+```bash
+node scripts/seed.js
+```
+*(or `npm run seed`)*
+
+### 4. Verify Database Connection & Tables
+Check that all 14 tables and records are properly configured:
+```bash
+node check-db.js
 ```
 
-### 3. Start the Backend Server
+### 5. Start the Web Server
 ```bash
-npm start
+node server.js
 ```
+*(or `npm start`)*
 
-Open your browser at **[http://localhost:5000](http://localhost:5000)**.
+Open your browser and navigate to: **[http://localhost:5000](http://localhost:5000)**
 
-### 4. Run Automated Backend Tests
-To verify all REST API endpoints:
+### 6. Run Automated Backend Tests
+Run the comprehensive 13-point test suite covering authentication, CRUD, and AI endpoints:
 ```bash
-npm test
+node scripts/test-api.js
 ```
+*(or `npm test`)*
 
 ---
 
@@ -119,82 +168,99 @@ npm test
 
 | Username | Password | Role | Description |
 |---|---|---|---|
-| `admin` | `admin123` | **Admin** | Full access to Admin Dashboard, Article CRUD, and comment moderation |
-| `harsh` | `User123!` | **User** | Standard user account with bookmarks and ratings |
-| `demo` | `User123!` | **User** | Sample student user account |
+| `admin` | `admin123` | **Admin** | Full access to Admin Dashboard, Article & Category CRUD, and Comment Moderation |
+| `harsh` | `User123!` | **User** | Standard user account with personalized bookmarks and ratings |
+| `demo` | `User123!` | **User** | Sample student account |
 
-*(Or register a new account on `/register.html`)*
+*(New accounts can also be created freely on `/register.html`)*
 
 ---
 
 ## 🔌 REST API Reference Summary
 
 ### Authentication (`/api/auth`)
-- `POST /api/auth/register` – Register new user with strong password checks
-- `POST /api/auth/login` – Login with username/password, returns JWT token
+- `POST /api/auth/register` – Register new user with password complexity checks
+- `POST /api/auth/login` – Login with username/password, returns signed JWT token
 - `GET /api/auth/me` – Fetch current authenticated profile
+- `PUT /api/auth/profile` – Update user profile information
 
 ### Articles (`/api/articles`)
-- `GET /api/articles?q=&category=&difficulty=&status=` – Search & filter articles
-- `GET /api/articles/trending` – Top trending articles for homepage
-- `GET /api/articles/suggestions?q=` – Fast title/description autocomplete
-- `GET /api/articles/:id` – Full article details with steps, FAQs, comments & ratings
-- `POST /api/articles` – *(Admin)* Create article with steps & FAQs
-- `PUT /api/articles/:id` – *(Admin)* Update article details & steps
-- `DELETE /api/articles/:id` – *(Admin)* Remove article
+- `GET /api/articles` – Search & filter articles by query, category, difficulty, or status
+- `GET /api/articles/trending` – Fetch curated trending articles for homepage
+- `GET /api/articles/suggestions?q=` – Autocomplete suggestions for search bar
+- `GET /api/articles/:id` – Full article details with steps, FAQs, comments, ratings, and media
+- `POST /api/articles` – *(Admin)* Create a new article with step breakdowns and FAQs
+- `PUT /api/articles/:id` – *(Admin)* Update an existing article
+- `DELETE /api/articles/:id` – *(Admin)* Delete article (cascades related records)
 
 ### Categories (`/api/categories`)
-- `GET /api/categories` – List categories with dynamic guide counts
+- `GET /api/categories` – List all categories with dynamic guide counts
 - `GET /api/categories/:id` – Get category details and associated articles
 - `POST /api/categories` – *(Admin)* Create category
 - `PUT /api/categories/:id` – *(Admin)* Update category
 - `DELETE /api/categories/:id` – *(Admin)* Delete category
 
 ### Comments & Ratings
-- `GET /api/comments/article/:id` – Fetch comments for an article
-- `POST /api/comments/article/:id` – Post comment
-- `DELETE /api/comments/:id` – *(Admin / Author)* Delete comment
-- `GET /api/ratings/:articleId` – Get average rating & user rating
-- `POST /api/ratings/:articleId` – Submit or update rating (1-5)
+- `GET /api/comments/article/:id` – Fetch all comments for an article
+- `POST /api/comments/article/:id` – Submit a new comment
+- `DELETE /api/comments/:id` – *(Admin / Author)* Remove a comment
+- `GET /api/ratings/:articleId` – Get average rating and user's specific rating
+- `POST /api/ratings/:articleId` – Submit or update rating (1 to 5 stars)
 
 ### Bookmarks (`/api/bookmarks`)
-- `GET /api/bookmarks` – Get user's saved guides
-- `POST /api/bookmarks/toggle` – Toggle bookmark for an article
+- `GET /api/bookmarks` – Get current user's saved guides
+- `POST /api/bookmarks/toggle` – Toggle bookmark state for an article
 
-### Troubleshooting & Groq AI Synthesizer
-- `POST /api/troubleshooting/analyze` – Match terminal error log against knowledge base with Groq AI diagnosis
-- `GET /api/commands` – Fetch full Git commands catalogue
-- `POST /api/commands/synthesize` – Validate flag combinations & safety warnings
-- `POST /api/commands/ai-synthesize` – Translate natural language into precision Git commands with Groq AI
-- `POST /api/commands/ai-explain` – Deep AI flag breakdown and safety risk audit for any Git command
+### Git Commands & AI Synthesizer (`/api/commands`)
+- `GET /api/commands` – Fetch full Git command catalog with flags
+- `POST /api/commands/synthesize` – Validate flag combinations & evaluate safety risk levels
+- `POST /api/commands/ai-synthesize` – Natural language to Git command synthesis via Groq AI
+- `POST /api/commands/ai-explain` – Deep AI syntax breakdown and safety audit
+
+### Troubleshooting & Error Analyzer (`/api/troubleshooting`)
+- `GET /api/troubleshooting/patterns` – List known terminal error patterns
+- `POST /api/troubleshooting/analyze` – Analyze terminal error output using pattern matching and Groq AI
 
 ### Analytics & Dashboard (`/api/dashboard`)
-- `GET /api/dashboard/stats` – *(Admin)* KPI statistics
-- `GET /api/dashboard/audit-logs` – *(Admin)* System activity log
-- `GET /api/dashboard/user` – *(User)* User profile summary
+- `GET /api/dashboard/stats` – *(Admin)* Real-time platform KPI metrics
+- `GET /api/dashboard/audit-logs` – *(Admin)* Chronological audit trail of user actions
+- `GET /api/dashboard/user` – *(User)* User statistics, bookmarks, and activity
 
 ---
 
-## 📖 How to Explain in College DBMS Viva / Presentation
+## 📖 Relational DBMS Architecture (Viva / Presentation Notes)
 
-### 1. Database Architecture & Relationships
-- **1-to-Many**: One Category has many Articles (`categories.id` → `articles.category_id`).
-- **1-to-Many**: One Article has many Step instructions (`articles.id` → `article_steps.article_id`) and FAQs (`articles.id` → `article_faqs.article_id`).
-- **Many-to-Many (via junction tables)**:
-  - Users bookmarked Articles (`bookmarks` table with composite uniqueness on `[article_id, user_id]`).
-  - Users rated Articles (`ratings` table with constraint `1 <= rating <= 5`).
-- **Foreign Key Constraints (`ON DELETE CASCADE`)**: Deleting an article automatically cleans up its steps, FAQs, comments, bookmarks, and ratings to prevent orphaned records.
+### 1. Database Schema & Normalization
+The database consists of **14 normalized relational tables** in MySQL:
+- **Core Entities**: `users`, `categories`, `articles`, `git_commands`, `error_patterns`
+- **Child / Dependent Entities**: `article_steps`, `article_faqs`, `article_media`, `comments`, `ratings`, `bookmarks`, `audit_logs`, `recently_viewed_articles`, `article_reading_progress`
 
-### 2. Performance & Indexes
-- Foreign key indexing on `articles(category_id)`, `comments(article_id)`, and `bookmarks(user_id)` ensures fast joins.
-- SQLite WAL (Write-Ahead Logging) mode allows simultaneous readers and writers without blocking.
+### 2. Entity Relationships
+- **1-to-Many**: 
+  - `categories.id` $\rightarrow$ `articles.category_id`
+  - `articles.id` $\rightarrow$ `article_steps.article_id`
+  - `articles.id` $\rightarrow$ `article_faqs.article_id`
+  - `articles.id` $\rightarrow$ `article_media.article_id`
+  - `articles.id` $\rightarrow$ `comments.article_id`
+- **Many-to-Many Relationships**:
+  - `users` $\leftrightarrow$ `articles` via `bookmarks` (composite uniqueness on `(user_id, article_id)`)
+  - `users` $\leftrightarrow$ `articles` via `ratings` (unique constraint on `(user_id, article_id)` with `CHECK (rating >= 1 AND rating <= 5)`)
 
-### 3. Security
-- **Password Protection**: Passwords are never stored in plain text; they are hashed with `bcryptjs` (salt rounds = 10).
-- **JWT Authorization**: Bearer tokens are signed with a server secret and validated on protected routes.
-- **SQL Injection Prevention**: All queries use parameterized statements (`?` placeholders via prepared statements).
+### 3. Referential Integrity & Cascades
+- Configured with `ON DELETE CASCADE` on child entities (steps, FAQs, media, comments, ratings, bookmarks) so that deleting an article cleans up dependent records automatically, preventing orphaned rows.
+- User deletion sets comments to `NULL` via `ON DELETE SET NULL` to preserve discussion history.
+
+### 4. Concurrency & Performance
+- **Connection Pooling**: Managed via `mysql2/promise` with configurable pool size (`connectionLimit: 10`, `keepAliveInitialDelay: 0`).
+- **Indexes**: Clustered Primary Keys on all tables; B-Tree indexes on foreign keys (`category_id`, `article_id`, `user_id`) and status columns for fast search lookups and aggregations.
+- **Transactions**: Atomic seeding and multi-step mutations executed using `connection.beginTransaction()`, `connection.commit()`, and `connection.rollback()`.
+
+### 5. Security Practices
+- **Parameterized SQL Queries**: All database queries strictly use prepared statements (`?` placeholders) to prevent SQL Injection attacks.
+- **Cryptographic Password Hashing**: Passwords stored as irreversible bcrypt hashes (salt rounds = 10).
+- **Stateless Authorization**: Signed JWTs verified on protected API routes with Role-Based Access Control (RBAC).
 
 ---
 
 ## 📝 License
-This project is open-source under the ISC License.
+This project is open-source and available under the **ISC License**.
