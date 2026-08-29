@@ -36,7 +36,10 @@ function initNavigation() {
         }
         
         // Add theme toggle button
-        html += '<button class="theme-toggle" id="themeToggle" aria-label="Toggle Dark Mode" title="Toggle Dark Mode">☾</button>';
+        html += '<button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle Dark Mode" title="Toggle Dark Mode">' +
+                '<span class="theme-toggle-icon">☾</span>' +
+                '<span class="theme-toggle-text">Dark Mode</span>' +
+                '</button>';
 
         navLinks.innerHTML = html;
     }
@@ -407,32 +410,75 @@ function initHeroSearch() {
     });
 }
 
-// ---- DARK MODE ----
-function initTheme() {
+// ---- THEME (DARK / LIGHT MODE) ----
+function updateThemeUI(theme, animate) {
     var toggleBtn = document.getElementById('themeToggle');
-    var currentTheme = localStorage.getItem('gitguide_theme') || 'light';
-    
-    if (currentTheme === 'dark') {
+    var isDark = theme === 'dark';
+
+    if (isDark) {
         document.documentElement.setAttribute('data-theme', 'dark');
-        if (toggleBtn) toggleBtn.textContent = '☀';
     } else {
         document.documentElement.removeAttribute('data-theme');
-        if (toggleBtn) toggleBtn.textContent = '☾';
     }
 
     if (toggleBtn) {
-        toggleBtn.addEventListener('click', function() {
-            var theme = document.documentElement.getAttribute('data-theme');
-            if (theme === 'dark') {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.setItem('gitguide_theme', 'light');
-                toggleBtn.textContent = '☾';
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('gitguide_theme', 'dark');
-                toggleBtn.textContent = '☀';
+        var iconEl = toggleBtn.querySelector('.theme-toggle-icon');
+        var textEl = toggleBtn.querySelector('.theme-toggle-text');
+        var labelText = isDark ? 'Light Mode' : 'Dark Mode';
+        var actionText = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        var iconChar = isDark ? '☀' : '☾';
+
+        if (iconEl) {
+            iconEl.textContent = iconChar;
+        } else {
+            toggleBtn.textContent = iconChar;
+        }
+
+        if (textEl) {
+            textEl.textContent = labelText;
+        }
+
+        toggleBtn.setAttribute('aria-label', actionText);
+        toggleBtn.setAttribute('title', actionText);
+
+        if (animate) {
+            toggleBtn.classList.remove('is-animating');
+            // Force DOM reflow to restart CSS animation cleanly
+            void toggleBtn.offsetWidth;
+            toggleBtn.classList.add('is-animating');
+
+            setTimeout(function () {
+                toggleBtn.classList.remove('is-animating');
+            }, 450);
+        }
+    }
+}
+
+function initTheme() {
+    var savedTheme = localStorage.getItem('gitguide_theme');
+    var initialTheme = savedTheme;
+
+    if (!initialTheme) {
+        initialTheme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+
+    updateThemeUI(initialTheme, false);
+
+    var toggleBtn = document.getElementById('themeToggle');
+    if (toggleBtn) {
+        toggleBtn.onclick = function (e) {
+            e.preventDefault();
+            var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            var nextTheme = current === 'dark' ? 'light' : 'dark';
+
+            localStorage.setItem('gitguide_theme', nextTheme);
+            updateThemeUI(nextTheme, true);
+
+            // Blur on touch/mobile to prevent persistent sticky focus/hover
+            if (typeof toggleBtn.blur === 'function') {
+                toggleBtn.blur();
             }
-        });
+        };
     }
 }
 
@@ -457,36 +503,6 @@ function initScrollObserver() {
     revealElements.forEach(function(el, index) {
         observer.observe(el);
     });
-}
-
-// ---- THEME TOGGLE ----
-function initTheme() {
-    var toggleBtn = document.getElementById('themeToggle');
-    var currentTheme = localStorage.getItem('gitguide_theme') || 'dark';
-
-    // Apply the saved theme immediately
-    if (currentTheme === 'light') {
-        document.documentElement.removeAttribute('data-theme');
-        if(toggleBtn) toggleBtn.textContent = '☀';
-    } else {
-        document.documentElement.setAttribute('data-theme', 'dark');
-        if(toggleBtn) toggleBtn.textContent = '☾';
-    }
-
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', function() {
-            var theme = document.documentElement.getAttribute('data-theme');
-            if (theme === 'dark') {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.setItem('gitguide_theme', 'light');
-                toggleBtn.textContent = '☀';
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('gitguide_theme', 'dark');
-                toggleBtn.textContent = '☾';
-            }
-        });
-    }
 }
 
 // ---- NAVBAR SCROLL SHADOW ----
