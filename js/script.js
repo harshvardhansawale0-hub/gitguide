@@ -43,7 +43,8 @@ function initNavigation() {
 
     // Toggle the mobile menu when hamburger is clicked
     if (hamburger && navLinks) {
-        hamburger.addEventListener('click', function () {
+        hamburger.addEventListener('click', function (e) {
+            e.stopPropagation();
             hamburger.classList.toggle('active');
             navLinks.classList.toggle('active');
         });
@@ -55,6 +56,22 @@ function initNavigation() {
                 hamburger.classList.remove('active');
                 navLinks.classList.remove('active');
             });
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!hamburger.contains(e.target) && !navLinks.contains(e.target)) {
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+            }
+        });
+
+        // Close menu on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+            }
         });
     }
 
